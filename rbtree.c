@@ -357,7 +357,7 @@ void rb_insert_lrcached(rb_tree_lrcached *root, rb_node *node,
 }
 
 /**
- *	Binary search to find the key. Returns NULL if not found.
+ *	Binary search to find 'key'. Returns NULL if not found.
  */
 
 const rb_node *rb_find(const rb_tree *root,
