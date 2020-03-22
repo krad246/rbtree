@@ -7,6 +7,10 @@
 
 #include <rbtree.h>
 
+/**
+ *	Helper functions for __rb_parent_color member of rb_node.
+ */
+
 static inline void __rb_set_red(rb_node *rb) {
     if (!rb) return;
     rb->__rb_parent_color |= RB_RED;
@@ -32,6 +36,10 @@ static inline void __rb_set_parent_and_color(rb_node *rb,
     if (!rb) return;
     rb->__rb_parent_color = ((unsigned long) parent) | color;
 }
+
+/**
+ *	Basic BST insertion algorithm - no balancing yet!
+ */
 
 static inline void __rb_insert_basic(rb_node *root, rb_node *node,
                                        int (*cmp)(const void *left, const void *right)) {
@@ -66,6 +74,10 @@ static inline void __rb_insert_basic(rb_node *root, rb_node *node,
     __rb_set_parent_and_color(node, cursor_parent, RB_RED);
 }
 
+/**
+ *	Fetches the other child of the given node's parent, if it exists.
+ */
+
 static inline rb_node *__rb_sibling(const rb_node *node) {
 
     rb_node *parent, *sibling;
@@ -78,6 +90,10 @@ static inline rb_node *__rb_sibling(const rb_node *node) {
     return sibling;
 }
 
+/**
+ *	Links 'new' in place of 'old' on the side of 'root' that 'old' was on.
+ */
+
 static inline void __rb_replace_child(rb_node *root, rb_node *old, rb_node *new) {
     if (!root) return;
     if (!old) return;
@@ -86,6 +102,10 @@ static inline void __rb_replace_child(rb_node *root, rb_node *old, rb_node *new)
     if (rb_left(root) == old) rb_left(root) = new;
     else if (rb_right(root) == old) rb_right(root) = new;
 }
+
+/*
+ *	Tree rotation operations centered on 'root'.
+ */
 
 static inline void __rb_left_rotate(rb_node *root) {
 
@@ -119,6 +139,10 @@ static inline void __rb_right_rotate(rb_node *root) {
     __rb_set_parent(pivot, upper_root);
     __rb_replace_child(upper_root, root, pivot);
 }
+
+/**
+ *	Red-black tree ancestor transformations centered on 'node'.
+ */
 
 static inline void __rb_ll_transform(rb_node *node) {
     rb_node *parent, *grandparent;
@@ -162,6 +186,10 @@ static inline void __rb_rl_transform(rb_node *node) {
     __rb_rr_transform(rb_right(node));
 }
 
+/**
+ * Red-black tree recoloring transformation centered on 'node'.
+ */
+
 static inline void __rb_ancestor_recolor(const rb_node *node) {
 
     rb_node *parent, *uncle, *grandparent;
@@ -175,6 +203,10 @@ static inline void __rb_ancestor_recolor(const rb_node *node) {
     __rb_set_red(grandparent);
 }
 
+/**
+ * Red-black tree rebalancing centered on 'node'. Called after insertion.
+ */
+
 static inline void __rb_rebalance(rb_node *node) {
 
     rb_node *parent, *uncle, *grandparent;
@@ -185,16 +217,18 @@ static inline void __rb_rebalance(rb_node *node) {
         uncle = __rb_sibling(parent);
         grandparent = rb_parent(parent);
 
+		// root
         if (rb_parent(node) == NULL) {
             __rb_set_black(node);
             return;
         }
 
+		// about to hit the root
         if (rb_is_black(parent)) {
             return;
         }
 
-        // restructure
+        // restructuring
         if (rb_is_black(uncle) || uncle == NULL) {
 
             // left-left
@@ -225,6 +259,10 @@ static inline void __rb_rebalance(rb_node *node) {
     }
 }
 
+/**
+ *	Sets tree structures to default state.
+ */
+
 void rb_tree_init(rb_tree *root) {
     root->node = NULL;
     root->count = 0;
@@ -235,6 +273,10 @@ void rb_node_init(rb_node *node) {
     rb_right(node) = NULL;
     RB_CLEAR_NODE(node);
 }
+
+/**
+ *	Red-black insertion given a comparator.
+ */
 
 void rb_insert(rb_tree *root, rb_node *node,
                                      int (*cmp)(const void *left, const void *right)) {
@@ -262,6 +304,10 @@ void rb_insert(rb_tree *root, rb_node *node,
     root->node = node;
     root->count++;
 }
+
+/**
+ *	Insertion into 'cached' trees is the same as above, but maintains a running max / min.
+ */
 
 void rb_insert_lcached(rb_tree_lcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right)) {
@@ -310,6 +356,10 @@ void rb_insert_lrcached(rb_tree_lrcached *root, rb_node *node,
     rb_insert(&root->tree, node, cmp);
 }
 
+/**
+ *	Binary search to find the key. Returns NULL if not found.
+ */
+
 const rb_node *rb_find(const rb_tree *root,
                        const void *key, int (*cmp)(const void *left, const void *right)) {
     if (!root) return NULL;
@@ -337,6 +387,10 @@ const rb_node *rb_find(const rb_tree *root,
 
     return cursor;
 }
+
+/**
+ *	Traversal to the logical min / max of the tree.
+ */
 
 static inline const rb_node *__rb_first(const rb_node *anchor) {
 
@@ -371,6 +425,10 @@ const rb_node *rb_last(const rb_tree *root) {
     if (!root) return NULL;
     return __rb_last(root->node);
 }
+
+/**
+ *	Iterative tree traversal in sorted / backwards order.
+ */
 
 const rb_node *rb_next(const rb_node *node) {
     if (!node) return NULL;
@@ -411,6 +469,10 @@ const rb_node *rb_prev(const rb_node *node) {
 
     return cursor_parent;
 }
+
+/**
+ * Tree traversal in all 3 'styles'. Invokes 'cb' on each node.
+ */
 
 static inline void __rb_inorder_foreach(rb_node *anchor, void (*cb)(void *key)) {
     if (!anchor) return;
