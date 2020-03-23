@@ -10,8 +10,16 @@ A red-black tree implementation in C modeled after the Linux Kernel rbtree.
 	struct a {
 		int x;
 		rb_node node;
-	}	
+	};	
 	```
+
+	Use `rb_entry` or `rb_entry_safe` to convert the arguments, which are pointers to the nodes embedded in the structure, into the structures of interest:
+
+	```c
+	rb_entry_safe(ptr, struct a, node);
+	```
+
+	This function takes `ptr` and returns a pointer to its containing structure of type `struct a` given that `ptr` is pointing to `node` within the object.
 
 3.  Provide a comparator callback for these tree to sort these structures, for instance:
 
@@ -24,14 +32,6 @@ A red-black tree implementation in C modeled after the Linux Kernel rbtree.
 	}
 	```
 
-	Use `rb_entry` or `rb_entry_safe` to convert the arguments, which are pointers to the nodes embedded in the structure, into the structures of interest:
-
-	```c
-	rb_entry_safe(ptr, struct a, node);
-	```
-
-	This function takes `ptr` and returns a pointer to its containing structure of type `struct a` given that `ptr` is pointing to `node` within the object.
-
 4.	Create your red-black tree and nodes out of the backing memory you have allocated:
 
 	```c
@@ -43,44 +43,7 @@ A red-black tree implementation in C modeled after the Linux Kernel rbtree.
 	rb_node_init(&foo.node);
 	```
 
-5. Start working with the tree!
-
-	```c
-
-	// Initializations
-	rb_tree tree;
-	rb_tree_init(&tree);
-
-	struct a foo;
-	foo.x = 1;
-	rb_node_init(&foo.node);
-
-	struct a bar;
-	foo.x = 2;
-	rb_node_init(&bar.node);
-
-	// Insertions
-	rb_insert(&tree, &foo.node, cmp);
-	rb_insert(&tree, &bar.node, cmp);
-
-	// Removals
-	// TODO
-
-	// Iteration
-	rb_node *f = rb_first(&tree);
-	rb_node *l = rb_last(&tree);
-
-	f = rb_next(f);
-
-	// Searching
-	rb_node *p = rb_find(&tree, f, cmp);
-
-	struct a j;
-	j.x = -10;
-	rb_node_init(&j.y);
-
-	rb_node *q = rb_find(&tree, &j.y, cmp);
-	```
+1. Start working with the tree! A full working snippet can be found [here](example/main.c).
 
 ## API
 
