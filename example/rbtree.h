@@ -61,8 +61,8 @@ typedef struct rb_tree_lrcached {
 #define __rb_is_black(pc)  __rb_color(pc)
 #define __rb_is_red(pc)    (!__rb_color(pc))
 #define rb_color(rb)       __rb_color((rb)->__rb_parent_color)
-#define rb_is_red(rb)      (((rb) != NULL) && __rb_is_red((rb)->__rb_parent_color))
-#define rb_is_black(rb)    (((rb) == NULL) || __rb_is_black((rb)->__rb_parent_color))
+#define rb_is_red(rb)      __rb_is_red((rb)->__rb_parent_color)
+#define rb_is_black(rb)    __rb_is_black((rb)->__rb_parent_color)
 
 #define __rb_parent(pc)    ((struct rb_node_t *)(pc & ~3))
 #define rb_parent(r)   __rb_parent((r)->__rb_parent_color)
@@ -105,15 +105,6 @@ void rb_insert(rb_tree *root, rb_node *node, int (*cmp)(const void *left, const 
 void rb_insert_lcached(rb_tree_lcached *root, rb_node *node, int (*cmp)(const void *left, const void *right));
 void rb_insert_rcached(rb_tree_rcached *root, rb_node *node, int (*cmp)(const void *left, const void *right));
 void rb_insert_lrcached(rb_tree_lrcached *root, rb_node *node, int (*cmp)(const void *left, const void *right));
-
-void rb_delete(rb_tree *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
-void rb_delete_lcached(rb_tree_lcached *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
-void rb_delete_rcached(rb_tree_rcached *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
-void rb_delete_lrcached(rb_tree_lrcached *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
 
 const rb_node *rb_find(const rb_tree *root, const void *key, int (*cmp)(const void *left, const void *right));
 

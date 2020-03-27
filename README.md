@@ -21,7 +21,7 @@ A red-black tree implementation in C modeled after the Linux Kernel rbtree.
 
 	This function takes `ptr` and returns a pointer to its containing structure of type `struct a` given that `ptr` is pointing to `node` within the object.
 
-3.  Provide a comparator callback for these tree to sort these structures, for instance:
+3.  Provide a comparator and copy callback for these tree to sort these structures, for instance:
 
 	```c
 	int cmp(const void *left, const void *right) {
@@ -29,6 +29,13 @@ A red-black tree implementation in C modeled after the Linux Kernel rbtree.
 		struct a *r = rb_entry_safe(right, struct a, node);
 
 		return l->x - r->x;
+	}
+
+	void copy(const void *src, void *dst) {
+		struct a *l = rb_entry_safe(src, struct a, node);
+		struct a *r = rb_entry_safe(dst, struct a, node);
+
+		r->x = l->x;
 	}
 	```
 
@@ -55,6 +62,15 @@ void rb_insert(rb_tree *root, rb_node *node, int (*cmp)(const void *left, const 
 void rb_insert_lcached(rb_tree_lcached *root, rb_node *node, int (*cmp)(const void *left, const void *right));
 void rb_insert_rcached(rb_tree_rcached *root, rb_node *node, int (*cmp)(const void *left, const void *right));
 void rb_insert_lrcached(rb_tree_lrcached *root, rb_node *node, int (*cmp)(const void *left, const void *right));
+
+void rb_delete(rb_tree *tree, rb_node *node,
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
+void rb_delete_lcached(rb_tree_lcached *tree, rb_node *node,
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
+void rb_delete_rcached(rb_tree_rcached *tree, rb_node *node,
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
+void rb_delete_lrcached(rb_tree_lrcached *tree, rb_node *node,
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
 
 const rb_node *rb_find(const rb_tree *root, const void *key, int (*cmp)(const void *left, const void *right));
 
