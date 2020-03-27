@@ -153,41 +153,41 @@ static inline void __rb_right_rotate(rb_node *root) {
  *	Red-black tree ancestor transformations centered on 'node' for insertions.
  */
 
-static inline void __rb_ins_ll_transform(rb_node *node) {
-    rb_node *parent, *grandparent;
-
-    parent = rb_parent(node);
-    grandparent = rb_parent(parent);
+static inline void __rb_ins_ll_transform(rb_node *node, rb_node *parent, rb_node *grandparent) {
+//    rb_node *parent, *grandparent;
+//
+//    parent = rb_parent(node);
+//    grandparent = rb_parent(parent);
 
     __rb_right_rotate(grandparent);
     __rb_swap_colors(parent, grandparent);
 }
 
-static inline void __rb_ins_lr_transform(rb_node *node) {
-    rb_node *parent;
-    parent = rb_parent(node);
+static inline void __rb_ins_lr_transform(rb_node *node, rb_node *parent) {
+//    rb_node *parent;
+//    parent = rb_parent(node);
 
     __rb_left_rotate(parent);
-    __rb_ins_ll_transform(rb_left(node));
+    __rb_ins_ll_transform(rb_left(node), node, parent);
 }
 
-static inline void __rb_ins_rr_transform(rb_node *node) {
-    rb_node *parent, *grandparent;
-
-    parent = rb_parent(node);
-    grandparent = rb_parent(parent);
+static inline void __rb_ins_rr_transform(rb_node *node, rb_node *parent, rb_node *grandparent) {
+//    rb_node *parent, *grandparent;
+//
+//    parent = rb_parent(node);
+//    grandparent = rb_parent(parent);
 
     __rb_left_rotate(grandparent);
     __rb_swap_colors(parent, grandparent);
 
 }
 
-static inline void __rb_ins_rl_transform(rb_node *node) {
-    rb_node *parent;
-    parent = rb_parent(node);
+static inline void __rb_ins_rl_transform(rb_node *node, rb_node *parent) {
+//    rb_node *parent;
+//    parent = rb_parent(node);
 
     __rb_right_rotate(parent);
-    __rb_ins_rr_transform(rb_right(node));
+    __rb_ins_rr_transform(rb_right(node), node, parent);
 }
 
 /**
@@ -237,22 +237,22 @@ static inline void __rb_insert_rebalance(rb_node *node) {
 
             // left-left
             if ((parent == rb_left(grandparent)) && (node == rb_left(parent))) {
-                __rb_ins_ll_transform(node);
+                __rb_ins_ll_transform(node, parent, grandparent);
             }
 
             // left-right
             else if ((parent == rb_left(grandparent)) && (node == rb_right(parent))) {
-                __rb_ins_lr_transform(node);
+                __rb_ins_lr_transform(node, parent);
             }
 
             // right-right
             else if ((parent == rb_right(grandparent)) && (node == rb_right(parent))) {
-                __rb_ins_rr_transform(node);
+                __rb_ins_rr_transform(node, parent, grandparent);
             }
 
             // right-left
             else if ((parent == rb_right(grandparent)) && node == (rb_left(parent))) {
-                __rb_ins_rl_transform(node);
+                __rb_ins_rl_transform(node, parent);
             }
 
         // recolor
@@ -321,10 +321,12 @@ void rb_insert(rb_tree *root, rb_node *node,
 void rb_insert_lcached(rb_tree_lcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right)) {
 
+    // the very first node inserted is the minimum, for now
     if (RB_EMPTY_ROOT(&root->tree)) {
         rb_first_cached(root) = node;
     }
 
+    // subsequent inserts are cached as the min if they're smaller than the known min
     if (cmp((void *) node, (void *) rb_first_cached(root)) < 0) {
         rb_first_cached(root) = node;
     }
@@ -335,10 +337,12 @@ void rb_insert_lcached(rb_tree_lcached *root, rb_node *node,
 void rb_insert_rcached(rb_tree_rcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right)) {
 
+    // the very first node inserted is the minimum, for now
     if (RB_EMPTY_ROOT(&root->tree)) {
         rb_last_cached(root) = node;
     }
 
+    // subsequent inserts are cached as the max if they're larger than the known max
     if (cmp((void *) node, (void *) rb_last_cached(root)) >= 0) {
         rb_last_cached(root) = node;
     }
@@ -349,15 +353,18 @@ void rb_insert_rcached(rb_tree_rcached *root, rb_node *node,
 void rb_insert_lrcached(rb_tree_lrcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right)) {
 
+    // first element inserted is both the largest and smallest
     if (RB_EMPTY_ROOT(&root->tree)) {
         rb_first_cached(root) = node;
         rb_last_cached(root) = node;
     }
 
+    // subsequent inserts are cached as the min if they're smaller than the known min
     if (cmp((void *) node, (void *) rb_first_cached(root)) < 0) {
         rb_first_cached(root) = node;
     }
 
+    // subsequent inserts are cached as the max if they're larger than the known max
     if (cmp((void *) node, (void *) rb_last_cached(root)) >= 0) {
         rb_last_cached(root) = node;
     }
@@ -502,7 +509,7 @@ static inline void __rb_delete_node(rb_node *target) {
 }
 
 static inline void __rb_move_and_delete(rb_node *src, rb_node *dst,
-                                        void (*copy)(const void *left, void *right)) {
+                                        void (*copy)(const void *src, void *dst)) {
     copy((void *) src, (void *) dst);
     __rb_delete_node(src);
 }
@@ -513,7 +520,7 @@ static inline void __rb_move_and_delete(rb_node *src, rb_node *dst,
 
 static inline void __rb_delete_basic(rb_node *root, rb_node *node,
                                        int (*cmp)(const void *left, const void *right),
-                                       void (*copy)(const void *left, void *right)) {
+                                       void (*copy)(const void *src, void *dst)) {
     rb_node *target, *successor;
 
     target = (rb_node *) __rb_find(root, node, cmp);                // try to find the node to even delete, if it exists
@@ -530,10 +537,10 @@ static inline void __rb_delete_rebalance(rb_node *node) {
 
     for (;;) {
 
-        // deleting a leaf doesn't require any work
-        if (node == NULL) {
-            return;
-        }
+//        // deleting a leaf doesn't require any work
+//        if (node == NULL) {
+//            return;
+//        }
 
         parent = rb_parent(node);
         sibling = __rb_sibling(node);
@@ -614,7 +621,7 @@ static inline void __rb_delete_rebalance(rb_node *node) {
 
 void rb_delete(rb_tree *tree, rb_node *node,
                int (*cmp)(const void *left, const void *right),
-               void (*copy)(const void *left, void *right)) {
+               void (*copy)(const void *src, void *dst)) {
 
     if (!tree) return;
     if (!node) return;
@@ -623,67 +630,79 @@ void rb_delete(rb_tree *tree, rb_node *node,
 
     rb_node *target, *successor;
 
-    target = (rb_node *) __rb_find(rb_root(tree), node, cmp);           // try to find the node to even delete, if it exists
+    target = (rb_node *) __rb_find(rb_root(tree), node, cmp);       // try to find the node to even delete, if it exists
     if (!target) return;
 
-    if (target != rb_root(tree)) {
-        successor = (rb_node *) __rb_node_successor(target);            // find the successor
-        __rb_delete_rebalance(successor);                               // do any necessary rebalancing centered around the successor before deleting
-        __rb_delete_basic(successor, target, cmp, copy);                // copy the successor to the target, then delete the successor
-    } else {
-        __rb_node_clear(rb_root(tree));                                 // deleting the root empties the tree
+    successor = (rb_node *) __rb_node_successor(target);            // find the successor
+    __rb_delete_rebalance(successor);                               // do any necessary rebalancing centered around the successor before deleting
+    __rb_move_and_delete(successor, target, copy);                  // copy the successor to the target, then delete the successor
+
+    if (RB_EMPTY_NODE(rb_root(tree))) {                             // deleting the root empties the tree
         rb_root(tree) = NULL;
     }
 
     // retrace the root (has no parent)
-    while (rb_parent(rb_root(tree)) != NULL) {
-        rb_root(tree) = rb_parent(rb_root(tree));
+    while (rb_parent(target) != NULL) {
+        target = rb_parent(target);
     }
+
+    rb_root(tree) = target;
 }
 
 void rb_delete_lcached(rb_tree_lcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right),
-                       void (*copy)(const void *left, void *right)) {
+                       void (*copy)(const void *src, void *dst)) {
+
+    // deleting the min makes the new min the next element in sorted order
+    if (cmp((void *) node, (void *) rb_first_cached(root)) == 0) {
+            rb_first_cached(root) = (rb_node *) rb_next(rb_first_cached(root));
+    }
 
     rb_delete(&root->tree, node, cmp, copy);
 
+    // if the tree was emptied, we don't have a min
     if (RB_EMPTY_ROOT(&root->tree)) {
         rb_first_cached(root) = NULL;
-    } else if (cmp((void *) node, (void *) rb_first_cached(root)) == 0) {
-        rb_first_cached(root) = (rb_node *) rb_next(rb_first_cached(root));
     }
 }
 
 void rb_delete_rcached(rb_tree_rcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right),
-                       void (*copy)(const void *left, void *right)) {
+                       void (*copy)(const void *src, void *dst)) {
+
+    // deleting the max makes the new max the previous element in sorted order
+    if (cmp((void *) node, (void *) rb_last_cached(root)) == 0) {
+            rb_last_cached(root) = (rb_node *) rb_prev(rb_last_cached(root));
+    }
 
     rb_delete(&root->tree, node, cmp, copy);
 
+    // if the tree was emptied, we don't have a max
     if (RB_EMPTY_ROOT(&root->tree)) {
         rb_last_cached(root) = NULL;
-    } else if (cmp((void *) node, (void *) rb_last_cached(root)) == 0) {
-        rb_last_cached(root) = (rb_node *) rb_last(&root->tree);
     }
 }
 
 void rb_delete_lrcached(rb_tree_lrcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right),
-                       void (*copy)(const void *left, void *right)) {
+                       void (*copy)(const void *src, void *dst)) {
+
+    // deleting the min makes the new min the next element in sorted order
+    if (cmp((void *) node, (void *) rb_first_cached(root)) == 0) {
+        rb_first_cached(root) = (rb_node *) rb_first(&root->tree);
+    }
+
+    // deleting the max makes the new max the previous element in sorted order
+    if (cmp((void *) node, (void *) rb_last_cached(root)) == 0) {
+            rb_last_cached(root) = (rb_node *) rb_last(&root->tree);
+    }
 
     rb_delete(&root->tree, node, cmp, copy);
 
+    // deleting the whole tree deletes the max and min
     if (RB_EMPTY_ROOT(&root->tree)) {
         rb_first_cached(root) = NULL;
         rb_last_cached(root) = NULL;
-    } else {
-        if (cmp((void *) node, (void *) rb_first_cached(root)) == 0) {
-            rb_first_cached(root) = (rb_node *) rb_first(&root->tree);
-        }
-
-        if (cmp((void *) node, (void *) rb_last_cached(root)) == 0) {
-                rb_last_cached(root) = (rb_node *) rb_last(&root->tree);
-        }
     }
 }
 

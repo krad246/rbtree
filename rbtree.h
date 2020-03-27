@@ -107,13 +107,13 @@ void rb_insert_rcached(rb_tree_rcached *root, rb_node *node, int (*cmp)(const vo
 void rb_insert_lrcached(rb_tree_lrcached *root, rb_node *node, int (*cmp)(const void *left, const void *right));
 
 void rb_delete(rb_tree *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *src, void *dst));
 void rb_delete_lcached(rb_tree_lcached *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *src, void *dst));
 void rb_delete_rcached(rb_tree_rcached *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *src, void *dst));
 void rb_delete_lrcached(rb_tree_lrcached *tree, rb_node *node,
-               int (*cmp)(const void *left, const void *right), void (*copy)(const void *left, void *right));
+               int (*cmp)(const void *left, const void *right), void (*copy)(const void *src, void *dst));
 
 const rb_node *rb_find(const rb_tree *root, const void *key, int (*cmp)(const void *left, const void *right));
 
