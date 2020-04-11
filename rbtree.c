@@ -13,7 +13,8 @@
 
 static inline void __rb_set_red(rb_node *rb) {
     if (!rb) return;
-    rb->__rb_parent_color |= RB_RED;
+    rb->__rb_parent_color &= ~RB_BLACK;
+	rb->__rb_parent_color |= RB_RED;
 }
 
 static inline void __rb_set_black(rb_node *rb) {
@@ -23,7 +24,9 @@ static inline void __rb_set_black(rb_node *rb) {
 
 static inline void __rb_set_color(rb_node *rb, int color) {
     if (!rb) return;
-    rb->__rb_parent_color = ((unsigned long) rb_parent(rb)) | color;
+
+	if (color == RB_BLACK) __rb_set_black(rb);
+	else __rb_set_red(rb);
 }
 
 static inline void __rb_set_parent(rb_node *rb, rb_node *parent) {
@@ -34,7 +37,8 @@ static inline void __rb_set_parent(rb_node *rb, rb_node *parent) {
 static inline void __rb_set_parent_and_color(rb_node *rb,
                        rb_node *parent, int color) {
     if (!rb) return;
-    rb->__rb_parent_color = ((unsigned long) parent) | color;
+    __rb_set_parent(rb, parent);
+	__rb_set_color(rb, color);
 }
 
 /**
@@ -81,7 +85,7 @@ static inline void __rb_insert_basic(rb_node *root, rb_node *node,
 static inline rb_node *__rb_sibling(const rb_node *node) {
 
     rb_node *parent, *sibling;
-    parent = rb_parent(node);
+    parent = node ? rb_parent(node) : NULL;
 
     if (parent == NULL || node == NULL) sibling = NULL;
     else if (rb_left(parent) == node) sibling = rb_right(parent);
@@ -120,20 +124,21 @@ static inline void __rb_left_rotate(rb_node *root) {
 
     rb_node *upper_root, *pivot;
 
-    upper_root = rb_parent(root);
-    pivot = rb_right(root);
+    upper_root = rb_parent(root); 				// 'master tree' containing the subtree being rotated
+    pivot = rb_right(root);						// new root of that subtree
 
-    rb_right(root) = rb_left(pivot);
+    rb_right(root) = rb_left(pivot);			// link the current root's right subtree as the new root's left
     __rb_set_parent(rb_right(root), root);
 
-    rb_left(pivot) = root;
-    __rb_set_parent(root, pivot);
+    rb_left(pivot) = root;						// link the old root as the left subtree of the new root
+    __rb_set_parent(rb_left(pivot), pivot);
 
-    __rb_set_parent(pivot, upper_root);
+    __rb_set_parent(pivot, upper_root);			// update the subtree's connection to the master
     __rb_replace_child(upper_root, root, pivot);
 }
 
 static inline void __rb_right_rotate(rb_node *root) {
+
     rb_node *upper_root, *pivot;
 
     upper_root = rb_parent(root);
@@ -143,7 +148,7 @@ static inline void __rb_right_rotate(rb_node *root) {
     __rb_set_parent(rb_left(root), root);
 
     rb_right(pivot) = root;
-    __rb_set_parent(root, pivot);
+    __rb_set_parent(rb_right(pivot), pivot);
 
     __rb_set_parent(pivot, upper_root);
     __rb_replace_child(upper_root, root, pivot);
@@ -154,54 +159,48 @@ static inline void __rb_right_rotate(rb_node *root) {
  */
 
 static inline void __rb_ins_ll_transform(rb_node *node, rb_node *parent, rb_node *grandparent) {
-//    rb_node *parent, *grandparent;
-//
-//    parent = rb_parent(node);
-//    grandparent = rb_parent(parent);
-
+	__rb_swap_colors(parent, grandparent);
     __rb_right_rotate(grandparent);
-    __rb_swap_colors(parent, grandparent);
 }
 
 static inline void __rb_ins_lr_transform(rb_node *node, rb_node *parent) {
-//    rb_node *parent;
-//    parent = rb_parent(node);
 
-    __rb_left_rotate(parent);
-    __rb_ins_ll_transform(rb_left(node), node, parent);
+    __rb_left_rotate(parent); // left-rotate to convert it to the LL case
+
+	// reassignments to properly set up for LL case handling
+	// the ancestors of the LL-transform 'center' are remapped because the original center 'node' is now the parent of the new one
+	rb_node *__new_center, *__new_center_parent, *__new_center_grandparent;
+
+	__new_center = parent;	// parent is the child of node after the rotation
+	__new_center_parent = rb_parent(__new_center);
+	__new_center_grandparent = rb_parent(__new_center_parent);
+
+	__rb_ins_ll_transform(__new_center, __new_center_parent, __new_center_grandparent);
 }
 
 static inline void __rb_ins_rr_transform(rb_node *node, rb_node *parent, rb_node *grandparent) {
-//    rb_node *parent, *grandparent;
-//
-//    parent = rb_parent(node);
-//    grandparent = rb_parent(parent);
-
+	__rb_swap_colors(parent, grandparent);
     __rb_left_rotate(grandparent);
-    __rb_swap_colors(parent, grandparent);
-
 }
 
 static inline void __rb_ins_rl_transform(rb_node *node, rb_node *parent) {
-//    rb_node *parent;
-//    parent = rb_parent(node);
 
     __rb_right_rotate(parent);
-    __rb_ins_rr_transform(rb_right(node), node, parent);
+
+	rb_node *__new_center, *__new_center_parent, *__new_center_grandparent;
+
+	__new_center = parent;	// parent is the child of node after the rotation
+	__new_center_parent = rb_parent(__new_center);
+	__new_center_grandparent = rb_parent(__new_center_parent);
+
+	__rb_ins_rr_transform(__new_center, __new_center_parent, __new_center_grandparent);
 }
 
 /**
  * Red-black tree recoloring transformation centered on 'node'.
  */
 
-static inline void __rb_ancestor_recolor(const rb_node *node) {
-
-    rb_node *parent, *uncle, *grandparent;
-
-    parent = rb_parent(node);
-    uncle = __rb_sibling(parent);
-    grandparent = rb_parent(parent);
-
+static inline void __rb_ins_ancestor_recolor(rb_node *parent, rb_node *uncle, rb_node *grandparent) {
     __rb_set_black(parent);
     __rb_set_black(uncle);
     __rb_set_red(grandparent);
@@ -217,49 +216,57 @@ static inline void __rb_insert_rebalance(rb_node *node) {
 
     for (;;) {
 
-        parent = rb_parent(node);
+        parent = node ? rb_parent(node) : NULL;
         uncle = __rb_sibling(parent);
-        grandparent = rb_parent(parent);
+        grandparent = parent ? rb_parent(parent) : NULL;
 
-		// root
+		// hitting the root means we're done - make sure it's black afterwards.
         if (parent == NULL) {
-            __rb_set_black(node);
+			__rb_set_black(node);
             return;
         }
 
-		// about to hit the root
-        if (rb_is_black(parent)) {
-            return;
-        }
+		// if the node we've hit is is black then the subtree formed by it is going to be balanced
+		if (rb_is_black(node)) {
+			return;
+		}
 
-        // restructuring
-        if (rb_is_black(uncle) || uncle == NULL) {
+		// same thing as above for degenerate sizes of trees (prevents segfault)
+		if (rb_is_black(parent)) {
+			return;
+		}
 
-            // left-left
-            if ((parent == rb_left(grandparent)) && (node == rb_left(parent))) {
-                __rb_ins_ll_transform(node, parent, grandparent);
-            }
-
-            // left-right
-            else if ((parent == rb_left(grandparent)) && (node == rb_right(parent))) {
-                __rb_ins_lr_transform(node, parent);
-            }
-
-            // right-right
-            else if ((parent == rb_right(grandparent)) && (node == rb_right(parent))) {
-                __rb_ins_rr_transform(node, parent, grandparent);
-            }
-
-            // right-left
-            else if ((parent == rb_right(grandparent)) && node == (rb_left(parent))) {
-                __rb_ins_rl_transform(node, parent);
-            }
-
-        // recolor
-        } else if (rb_is_red(uncle)) {
-            __rb_ancestor_recolor(node);
+		// try a recolor first
+		if (rb_is_red(uncle)) {
+            __rb_ins_ancestor_recolor(parent, uncle, grandparent);
             node = grandparent;
-        }
+			continue;
+        } 
+
+		// ...otherwise do rotations
+
+		// left-left
+		if ((parent == rb_left(grandparent)) && (node == rb_left(parent))) {
+			__rb_ins_ll_transform(node, parent, grandparent);
+		}
+
+		// left-right
+		else if ((parent == rb_left(grandparent)) && (node == rb_right(parent))) {
+			__rb_ins_lr_transform(node, parent);
+		}
+
+		// right-right
+		else if ((parent == rb_right(grandparent)) && (node == rb_right(parent))) {
+			__rb_ins_rr_transform(node, parent, grandparent);
+		}
+
+		// right-left
+		else if ((parent == rb_right(grandparent)) && node == (rb_left(parent))) {
+			__rb_ins_rl_transform(node, parent);
+		}
+
+		// work your way up the tree
+		node = parent;
     }
 }
 
@@ -267,43 +274,59 @@ static inline void __rb_insert_rebalance(rb_node *node) {
  *	Sets tree structures to default state.
  */
 
-void rb_tree_init(rb_tree *root) {
-    if (!root) return;
+void rb_tree_init(rb_tree *tree) {
+    if (!tree) return;
 
-    root->node = NULL;
+    rb_root(tree) = NULL;
 }
 
-void rb_node_init(rb_node *node) {
-    if (!node) return;
+void rb_tree_lcached_init(rb_tree_lcached *tree) {
+	rb_tree_init(&tree->tree);
+	rb_first_cached(tree) = NULL;
+}
+
+void rb_tree_rcached_init(rb_tree_rcached *tree) {
+	rb_tree_init(&tree->tree);
+	rb_last_cached(tree) = NULL;
+}
+
+void rb_tree_lrcached_init(rb_tree_lrcached *tree) {
+	rb_tree_init(&tree->tree);
+	rb_first_cached(tree) = NULL;
+	rb_last_cached(tree) = NULL;
+}
+
+static inline void __rb_node_clear(rb_node *node) {
+	if (!node) return;
 
     rb_left(node) = NULL;
     rb_right(node) = NULL;
     RB_CLEAR_NODE(node);
 }
 
-static inline void __rb_node_clear(rb_node *node) {
-    rb_node_init(node);
+void rb_node_init(rb_node *node) {
+	__rb_node_clear(node);
 }
 
 /**
  *	Red-black insertion given a comparator.
  */
 
-void rb_insert(rb_tree *root, rb_node *node,
+void rb_insert(rb_tree *tree, rb_node *node,
                                      int (*cmp)(const void *left, const void *right)) {
-    if (!root) return;
+    if (!tree) return;
     if (!node) return;
     if (!cmp) return;
 
     // if the tree is empty, then set the root of the tree to a known black node
-    if (RB_EMPTY_ROOT(root)) {
-        root->node = node;
-        __rb_set_parent_and_color(root->node, NULL, RB_BLACK);
+    if (RB_NULL_ROOT(tree)) {
+        rb_root(tree) = node;
+        __rb_set_parent_and_color(rb_root(tree), NULL, RB_BLACK);
         return;
     }
 
     // insertion with red coloring followed by autobalancing
-    __rb_insert_basic(root->node, node, cmp);
+    __rb_insert_basic(rb_root(tree), node, cmp);
     __rb_insert_rebalance(node);
 
     // retrace the root (has no parent)
@@ -311,7 +334,7 @@ void rb_insert(rb_tree *root, rb_node *node,
         node = rb_parent(node);
     }
 
-    root->node = node;
+    rb_root(tree) = node;
 }
 
 /**
@@ -322,7 +345,7 @@ void rb_insert_lcached(rb_tree_lcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right)) {
 
     // the very first node inserted is the minimum, for now
-    if (RB_EMPTY_ROOT(&root->tree)) {
+    if (RB_NULL_ROOT(&root->tree)) {
         rb_first_cached(root) = node;
     }
 
@@ -338,7 +361,7 @@ void rb_insert_rcached(rb_tree_rcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right)) {
 
     // the very first node inserted is the minimum, for now
-    if (RB_EMPTY_ROOT(&root->tree)) {
+    if (RB_NULL_ROOT(&root->tree)) {
         rb_last_cached(root) = node;
     }
 
@@ -354,7 +377,7 @@ void rb_insert_lrcached(rb_tree_lrcached *root, rb_node *node,
                        int (*cmp)(const void *left, const void *right)) {
 
     // first element inserted is both the largest and smallest
-    if (RB_EMPTY_ROOT(&root->tree)) {
+    if (RB_NULL_ROOT(&root->tree)) {
         rb_first_cached(root) = node;
         rb_last_cached(root) = node;
     }
@@ -380,23 +403,21 @@ static inline const rb_node *__rb_find(const rb_node *anchor,
                                        const void *key, int (*cmp)(const void *left, const void *right)) {
 
     rb_node *cursor = (rb_node *) anchor;
-    if (cursor == NULL) return NULL;
-
+	
     int comparison;
     rb_node *next;
-    while (cursor != NULL) {
-
-     comparison = cmp((void *) key, (void *) cursor);
-     if (comparison < 0) {
-         next = cursor->left;
-     } else if (comparison == 0) {
-         break;
-     } else {
-         next = cursor->right;
-     }
-
-     cursor = next;
-    }
+    while (cursor != NULL) {	
+		comparison = cmp((void *) key, (void *) cursor);
+		if (comparison < 0) {
+			next = rb_left(cursor);
+		} else if (comparison == 0) {
+			break;
+		} else {
+			next = rb_right(cursor);
+		}
+		
+		cursor = next;
+	}
 
     return cursor;
 }
@@ -452,15 +473,17 @@ const rb_node *rb_next(const rb_node *node) {
     if (!node) return NULL;
     if (RB_EMPTY_NODE(node)) return NULL;
 
+	// if there is a right subtree to traverse, then go as far right as possible down there
     if (rb_right(node)) {
         return __rb_first(rb_right(node));
     }
 
+	// else move up until we find the first instance that we're the left subtree of something
     rb_node *cursor, *cursor_parent;
-
     cursor = (rb_node *) node;
     for (;;) {
         cursor_parent = rb_parent(cursor);
+		if (cursor_parent == NULL) return __rb_first(rb_right(cursor));	// unless we're at the root, in which case we can only go right
         if (cursor != rb_right(cursor_parent)) break;
         else cursor = cursor_parent;
     }
@@ -472,21 +495,27 @@ const rb_node *rb_prev(const rb_node *node) {
     if (!node) return NULL;
     if (RB_EMPTY_NODE(node)) return NULL;
 
+	// if there is a left subtree to traverse, gotta go as far right as possible on that side
     if (rb_left(node)) {
         return __rb_last(rb_left(node));
     }
 
+	// else move up until we are on the right side of something
     rb_node *cursor, *cursor_parent;
-
     cursor = (rb_node *) node;
     for (;;) {
         cursor_parent = rb_parent(cursor);
+		if (cursor_parent == NULL) return __rb_last(rb_left(cursor));	// unless we're at the root, in which case we can only go right
         if (cursor != rb_left(cursor_parent)) break;
         else cursor = cursor_parent;
     }
 
     return cursor_parent;
 }
+
+/**
+ * Basic BST deletion algorithm components - no balancing yet!
+ */
 
 static inline const rb_node *__rb_node_successor(const rb_node *target) {
     rb_node *successor;
@@ -514,109 +543,109 @@ static inline void __rb_move_and_delete(rb_node *src, rb_node *dst,
     __rb_delete_node(src);
 }
 
-/**
- * Basic BST deletion algorithm - no balancing yet!
- */
+// TODO: Case handling in discrete functions like insert(), for instance this one
 
-static inline void __rb_delete_basic(rb_node *root, rb_node *node,
-                                       int (*cmp)(const void *left, const void *right),
-                                       void (*copy)(const void *src, void *dst)) {
-    rb_node *target, *successor;
+static void __rb_del_relative_recolor(rb_node *sibling, rb_node *parent) {
+	__rb_set_black(sibling); // pull the red up
+	__rb_set_red(parent);
 
-    target = (rb_node *) __rb_find(root, node, cmp);                // try to find the node to even delete, if it exists
-    if (!target) return;
-
-    successor = (rb_node *) __rb_node_successor(target);            // find the successor
-    __rb_move_and_delete(successor, target, copy);                  // copy the successor to the target, then delete the successor
+	if (sibling == rb_right(parent)) __rb_left_rotate(parent);  // reconfigure the tree for recoloring
+	else __rb_right_rotate(parent);
 }
+
+/**
+ * RB tree rebalancer.
+ */
 
 static inline void __rb_delete_rebalance(rb_node *node) {
 
     rb_node *parent, *sibling;
-    rb_node *slchild, *srchild;
+    rb_node *sibling_lchild, *sibling_rchild;
 
     for (;;) {
 
-//        // deleting a leaf doesn't require any work
-//        if (node == NULL) {
-//            return;
-//        }
-
+        // if we hit the root we're done
         parent = rb_parent(node);
+        if (parent == NULL) {
+            break;
+        }
+
+		// deleting red node doesn't do anything bad
+		if (rb_is_red(node)) {
+			break;
+		}
+
+        // otherwise black height property is in violation and we'll need the sibling, etc.
         sibling = __rb_sibling(node);
 
-        // root
-        if (parent == NULL) {
-            return;
+        // if we have a red nearby, let's try to dump the double black into that nearby red... that'll prep us for the next case
+        if (rb_is_red(sibling)) {
+			__rb_del_relative_recolor(sibling, parent);
+			sibling = __rb_sibling(node);
         }
 
-        // deleting red doesn't break anything
-        if (rb_is_red(node)) {
-            return;
+        // new sibling is ALWAYS black, but we might be able to dump the black somewhere else
+        sibling_lchild = sibling ? rb_left(sibling) : NULL;
+        sibling_rchild = sibling ? rb_right(sibling) : NULL;
+
+        // if the nephew / niece can't take the black recolor, try to propagate it up
+        if (rb_is_black(sibling_lchild) && rb_is_black(sibling_rchild)) {
+	    	__rb_set_red(sibling);
+            node = parent;
+			continue;
         }
 
-        // deleting black node is illegal
-        if (node == rb_left(parent)) {
-            if (rb_is_red(sibling)) {                               // sibling is red, parent is black which is illegal
-                __rb_swap_colors(parent, sibling);
-                __rb_left_rotate(parent);
-                parent = rb_parent(node);
-                sibling = __rb_sibling(node);
+        // otherwise, we can do some rotations to find a red to drop the double-black into.
+        if (sibling == rb_right(parent)) {
+
+            // if the only red available is on the left side of the sibling, pull the red up and adjust black height
+            if (rb_is_black(sibling_rchild)) {
+				__rb_set_black(sibling_lchild);
+				__rb_set_red(sibling);
+
+                __rb_right_rotate(sibling);		// rl
+                
+				sibling = __rb_sibling(node);
+				sibling_lchild = sibling ? rb_left(sibling) : NULL;
+        		sibling_rchild = sibling ? rb_right(sibling) : NULL;
             }
 
-            slchild = rb_left(sibling);
-            srchild = rb_right(sibling);
-            if (rb_is_black(slchild) && rb_is_black(srchild)) {     // double-black overflow
-                __rb_set_red(sibling);
-                node = parent;
-            } else {
-                if (rb_is_black(srchild)) {
-                    __rb_set_black(slchild);
-                    __rb_set_red(sibling);
-                    __rb_right_rotate(sibling);
-                    parent = rb_parent(node);
-                    sibling = __rb_sibling(node);
-                }
-                __rb_set_color(sibling, rb_color(parent));
-                __rb_set_black(parent);
-                __rb_set_black(srchild);
-                __rb_left_rotate(parent);
-                return;
-            }
+            // terminal case pulls the red through and out of the system
+            __rb_set_color(sibling, rb_color(parent));
+            __rb_set_black(parent);
+            __rb_set_black(sibling_rchild);
+            __rb_left_rotate(parent);
+
+            break;
         } else {
-            if (rb_is_red(sibling)) {
-                __rb_swap_colors(parent, sibling);
-                __rb_right_rotate(parent);
-                parent = rb_parent(node);
-                sibling = __rb_sibling(node);
+
+            // if we're in the LR case specifically (the ONLY red child is on the right)
+            if (rb_is_black(sibling_lchild)) {
+                // __rb_swap_colors(sibling, sibling_rchild);  // pull the red up
+				__rb_set_black(sibling_rchild);
+				__rb_set_red(sibling);
+
+                __rb_left_rotate(sibling);
+
+				sibling = __rb_sibling(node);
+				sibling_lchild = sibling ? rb_left(sibling) : NULL;
+        		sibling_rchild = sibling ? rb_right(sibling) : NULL;
             }
 
-            slchild = rb_left(sibling);
-            srchild = rb_right(sibling);
-
-            if (rb_is_black(slchild) && rb_is_black(srchild)) {
-                __rb_set_red(sibling);
-                node = parent;
-            } else {
-                if (rb_is_black(slchild)) {
-                    __rb_set_black(srchild);
-                    __rb_set_red(sibling);
-                    __rb_left_rotate(sibling);
-                    parent = rb_parent(node);
-                    sibling = __rb_sibling(node);
-                }
-                __rb_set_color(sibling, rb_color(parent));
-                __rb_set_black(parent);
-                __rb_set_black(slchild);
-                __rb_right_rotate(parent);
-                return;
-            }
+            __rb_set_color(sibling, rb_color(parent));
+            __rb_set_black(parent);
+            __rb_set_black(sibling_lchild);
+            __rb_right_rotate(parent);
+			
+            break;
         }
-    }
+	}
+
+	__rb_set_black(node);
 }
 
 /**
- * Deletes a node from the tree. Requires a comparator to find the element and a copy() function to exchange elements.
+ * Deletes a node from the tree. Requires a comparator to find the element and a copy function to exchange elements.
  */
 
 void rb_delete(rb_tree *tree, rb_node *node,
@@ -628,25 +657,31 @@ void rb_delete(rb_tree *tree, rb_node *node,
     if (!cmp) return;
     if (!copy) return;
 
-    rb_node *target, *successor;
+    rb_node *target, *successor, *cursor;
 
-    target = (rb_node *) __rb_find(rb_root(tree), node, cmp);       // try to find the node to even delete, if it exists
+    target = (rb_node *) rb_find(tree, node, cmp);       // try to find the node to even delete, if it exists
     if (!target) return;
 
     successor = (rb_node *) __rb_node_successor(target);            // find the successor
-    __rb_delete_rebalance(successor);                               // do any necessary rebalancing centered around the successor before deleting
-    __rb_move_and_delete(successor, target, copy);                  // copy the successor to the target, then delete the successor
+    if (!successor) successor = target;                             // if there is none (leaf with no children) then the rebalance happens around the leaf itself
 
-    if (RB_EMPTY_NODE(rb_root(tree))) {                             // deleting the root empties the tree
+    __rb_delete_rebalance(successor);                               // do any necessary rebalancing centered around the successor before deleting it		
+	
+	// follow the tree up to retrace root if it changed
+    cursor = target;
+	while (rb_parent(cursor) != NULL) {
+        cursor = rb_parent(cursor);
+    }
+
+	rb_root(tree) = cursor;
+
+	// actually delete the node now
+    __rb_move_and_delete(successor, target, copy);
+
+	// post-deletion check to see if tree has been cleared
+    if (RB_EMPTY_NODE(rb_root(tree))) {                             
         rb_root(tree) = NULL;
     }
-
-    // retrace the root (has no parent)
-    while (rb_parent(target) != NULL) {
-        target = rb_parent(target);
-    }
-
-    rb_root(tree) = target;
 }
 
 void rb_delete_lcached(rb_tree_lcached *root, rb_node *node,
@@ -654,15 +689,18 @@ void rb_delete_lcached(rb_tree_lcached *root, rb_node *node,
                        void (*copy)(const void *src, void *dst)) {
 
     // deleting the min makes the new min the next element in sorted order
+    uint8_t min_changed = 0;
     if (cmp((void *) node, (void *) rb_first_cached(root)) == 0) {
-            rb_first_cached(root) = (rb_node *) rb_next(rb_first_cached(root));
+        min_changed = 1;
     }
 
     rb_delete(&root->tree, node, cmp, copy);
 
     // if the tree was emptied, we don't have a min
-    if (RB_EMPTY_ROOT(&root->tree)) {
+    if (RB_NULL_ROOT(&(root->tree))) {
         rb_first_cached(root) = NULL;
+    } else if (min_changed) {
+        rb_first_cached(root) = (rb_node *) rb_first(&(root->tree));
     }
 }
 
@@ -671,15 +709,18 @@ void rb_delete_rcached(rb_tree_rcached *root, rb_node *node,
                        void (*copy)(const void *src, void *dst)) {
 
     // deleting the max makes the new max the previous element in sorted order
+    uint8_t max_changed = 0;
     if (cmp((void *) node, (void *) rb_last_cached(root)) == 0) {
-            rb_last_cached(root) = (rb_node *) rb_prev(rb_last_cached(root));
+        max_changed = 1;
     }
 
     rb_delete(&root->tree, node, cmp, copy);
 
     // if the tree was emptied, we don't have a max
-    if (RB_EMPTY_ROOT(&root->tree)) {
+    if (RB_NULL_ROOT(&root->tree)) {
         rb_last_cached(root) = NULL;
+    } else if (max_changed) {
+        rb_last_cached(root) = (rb_node *) rb_last(&(root->tree));
     }
 }
 
@@ -688,21 +729,27 @@ void rb_delete_lrcached(rb_tree_lrcached *root, rb_node *node,
                        void (*copy)(const void *src, void *dst)) {
 
     // deleting the min makes the new min the next element in sorted order
+    uint8_t min_changed = 0;
     if (cmp((void *) node, (void *) rb_first_cached(root)) == 0) {
-        rb_first_cached(root) = (rb_node *) rb_first(&root->tree);
+        min_changed = 1;
     }
 
     // deleting the max makes the new max the previous element in sorted order
+    uint8_t max_changed = 0;
     if (cmp((void *) node, (void *) rb_last_cached(root)) == 0) {
-            rb_last_cached(root) = (rb_node *) rb_last(&root->tree);
+        max_changed = 1;
     }
 
     rb_delete(&root->tree, node, cmp, copy);
 
     // deleting the whole tree deletes the max and min
-    if (RB_EMPTY_ROOT(&root->tree)) {
+    if (RB_NULL_ROOT(&root->tree)) {
         rb_first_cached(root) = NULL;
         rb_last_cached(root) = NULL;
+    } else if (min_changed) {
+        rb_first_cached(root) = (rb_node *) rb_first(&(root->tree));
+    } else if (max_changed) {
+        rb_last_cached(root) = (rb_node *) rb_last(&(root->tree));
     }
 }
 

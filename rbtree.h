@@ -23,7 +23,6 @@ typedef struct __attribute__((aligned(sizeof(long)))) rb_node_t {
 
 typedef struct rb_tree_t {
     rb_node *node;
-    size_t count;
 } rb_tree;
 
 /**
@@ -60,7 +59,7 @@ typedef struct rb_tree_lrcached {
 #define __rb_color(pc)     ((pc) & 1)
 #define __rb_is_black(pc)  __rb_color(pc)
 #define __rb_is_red(pc)    (!__rb_color(pc))
-#define rb_color(rb)       __rb_color((rb)->__rb_parent_color)
+#define rb_color(rb)       (((rb) == NULL) || __rb_color((rb)->__rb_parent_color))
 #define rb_is_red(rb)      (((rb) != NULL) && __rb_is_red((rb)->__rb_parent_color))
 #define rb_is_black(rb)    (((rb) == NULL) || __rb_is_black((rb)->__rb_parent_color))
 
@@ -71,14 +70,14 @@ typedef struct rb_tree_lrcached {
 #define rb_right(rb)        ((rb)->right)
 
 #define rb_root(tree)        ((tree)->node)
-#define RB_EMPTY_ROOT(root)  (rb_root(root) == NULL)
 
 /* 'empty' nodes are nodes that are known not to be inserted in an rbtree */
 #define RB_EMPTY_NODE(node)  \
-    ((node)->__rb_parent_color == (unsigned long)(node))
+    (rb_parent((node)) == (node))
 #define RB_CLEAR_NODE(node)  \
-    ((node)->__rb_parent_color = (unsigned long)(node))
+    ((node)->__rb_parent_color = (unsigned long) (node))
 
+#define RB_NULL_ROOT(root)  (rb_root(root) == NULL)
 
 /**
  *	Helper macros to use the rbtree to link other structures
