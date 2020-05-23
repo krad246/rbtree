@@ -6,7 +6,7 @@
  */
 
 #include "rbtree.h"
-
+#include <assert.h>
 /**
  *	Helper functions for __rb_parent_color member of rb_node.
  */
@@ -480,12 +480,12 @@ const rb_node *rb_next(const rb_node *node) {
 
 	// else move up until we find the first instance that we're the left subtree of something
     rb_node *cursor, *cursor_parent;
+
     cursor = (rb_node *) node;
-    for (;;) {
-        cursor_parent = rb_parent(cursor);
-		if (cursor_parent == NULL) return __rb_first(rb_right(cursor));	// unless we're at the root, in which case we can only go right
-        if (cursor != rb_right(cursor_parent)) break;
-        else cursor = cursor_parent;
+	cursor_parent = rb_parent(cursor);
+   	while (cursor_parent != NULL && cursor == rb_right(cursor_parent)) {
+		cursor = cursor_parent;
+		cursor_parent = rb_parent(cursor);
     }
 
     return cursor_parent;
@@ -502,12 +502,12 @@ const rb_node *rb_prev(const rb_node *node) {
 
 	// else move up until we are on the right side of something
     rb_node *cursor, *cursor_parent;
-    cursor = (rb_node *) node;
-    for (;;) {
-        cursor_parent = rb_parent(cursor);
-		if (cursor_parent == NULL) return __rb_last(rb_left(cursor));	// unless we're at the root, in which case we can only go right
-        if (cursor != rb_left(cursor_parent)) break;
-        else cursor = cursor_parent;
+        
+	cursor = (rb_node *) node;
+	cursor_parent = rb_parent(cursor);
+    while (cursor_parent != NULL && cursor == rb_left(cursor_parent)) {
+		cursor = cursor_parent;
+		cursor_parent = rb_parent(cursor);
     }
 
     return cursor_parent;
@@ -518,29 +518,41 @@ const rb_node *rb_prev(const rb_node *node) {
  */
 
 static inline const rb_node *__rb_node_successor(const rb_node *target) {
-    rb_node *successor;
+	rb_node *successor;
 
-    if (rb_left(target) == NULL && rb_right(target) == NULL) {
-        successor = NULL;
-    } else if (rb_left(target) != NULL && rb_right(target) != NULL) {
-        successor = (rb_node *) rb_prev(target);
-    } else {
-        if (rb_left(target) != NULL) successor = rb_left(target);
-        else successor = rb_right(target);
-    }
+	if (rb_left(successor) && rb_right(successor)) {
+		successor = (rb_node *) rb_next(target);
+	} else if (!rb_right(target)) {
+		successor = rb_left(target);
+	} else if (!rb_left(target)) {
+		successor = rb_right(target);
+	} else {
+		successor = NULL;
+	}
 
     return successor;
 }
 
 static inline void __rb_delete_node(rb_node *target) {
-    __rb_replace_child(rb_parent(target), target, NULL);  // disconnect the successor
+	rb_node *child;
+
+	if (rb_left(target)) child = rb_left(target);
+	else if (rb_right(target)) child = rb_right(target);
+	else child = NULL;
+
+    __rb_replace_child(rb_parent(target), target, child);
     __rb_node_clear(target);
 }
 
 static inline void __rb_move_and_delete(rb_node *src, rb_node *dst,
                                         void (*copy)(const void *src, void *dst)) {
-    copy((void *) src, (void *) dst);
-    __rb_delete_node(src);
+
+	if (src) {
+		copy((void *) src, (void *) dst);
+    	__rb_delete_node(src);
+	} else {
+		__rb_delete_node(dst);
+	}
 }
 
 // TODO: Case handling in discrete functions like insert(), for instance this one
@@ -564,6 +576,8 @@ static inline void __rb_delete_rebalance(rb_node *node) {
 
     for (;;) {
 
+		assert(!RB_EMPTY_NODE(node));
+
         // if we hit the root we're done
         parent = rb_parent(node);
         if (parent == NULL) {
@@ -571,7 +585,7 @@ static inline void __rb_delete_rebalance(rb_node *node) {
         }
 
 		// deleting red node doesn't do anything bad
-		if (rb_is_red(node)) {
+		if (rb_is_red(node) || rb_is_red(parent)) {
 			break;
 		}
 
@@ -580,7 +594,12 @@ static inline void __rb_delete_rebalance(rb_node *node) {
 
         // if we have a red nearby, let's try to dump the double black into that nearby red... that'll prep us for the next case
         if (rb_is_red(sibling)) {
-			__rb_del_relative_recolor(sibling, parent);
+			__rb_set_black(sibling); // pull the red up
+			__rb_set_red(parent);
+
+			if (sibling == rb_right(parent)) __rb_left_rotate(parent);  // reconfigure the tree for recoloring
+			else __rb_right_rotate(parent);
+			
 			sibling = __rb_sibling(node);
         }
 
@@ -600,30 +619,31 @@ static inline void __rb_delete_rebalance(rb_node *node) {
 
             // if the only red available is on the left side of the sibling, pull the red up and adjust black height
             if (rb_is_black(sibling_rchild)) {
-				__rb_set_black(sibling_lchild);
-				__rb_set_red(sibling);
+				// __rb_set_black(sibling_lchild);
+				// __rb_set_red(sibling);
+				__rb_swap_colors(sibling, sibling_lchild);
 
                 __rb_right_rotate(sibling);		// rl
-                
+     
 				sibling = __rb_sibling(node);
 				sibling_lchild = sibling ? rb_left(sibling) : NULL;
         		sibling_rchild = sibling ? rb_right(sibling) : NULL;
             }
-
+assert(!RB_EMPTY_NODE(node));
             // terminal case pulls the red through and out of the system
             __rb_set_color(sibling, rb_color(parent));
             __rb_set_black(parent);
             __rb_set_black(sibling_rchild);
             __rb_left_rotate(parent);
-
+assert(!RB_EMPTY_NODE(node));
             break;
         } else {
 
             // if we're in the LR case specifically (the ONLY red child is on the right)
             if (rb_is_black(sibling_lchild)) {
-                // __rb_swap_colors(sibling, sibling_rchild);  // pull the red up
-				__rb_set_black(sibling_rchild);
-				__rb_set_red(sibling);
+                __rb_swap_colors(sibling, sibling_rchild);  // pull the red up
+				// __rb_set_black(sibling_rchild);
+				// __rb_set_red(sibling);
 
                 __rb_left_rotate(sibling);
 
@@ -662,10 +682,9 @@ void rb_delete(rb_tree *tree, rb_node *node,
     target = (rb_node *) rb_find(tree, node, cmp);       // try to find the node to even delete, if it exists
     if (!target) return;
 
-    successor = (rb_node *) __rb_node_successor(target);            // find the successor
-    if (!successor) successor = target;                             // if there is none (leaf with no children) then the rebalance happens around the leaf itself
-
-    __rb_delete_rebalance(successor);                               // do any necessary rebalancing centered around the successor before deleting it		
+    successor = (rb_node *) __rb_node_successor(target);    
+	if (successor) __rb_delete_rebalance(successor);	
+	else __rb_delete_rebalance(target);
 	
 	// follow the tree up to retrace root if it changed
     cursor = target;
@@ -673,15 +692,15 @@ void rb_delete(rb_tree *tree, rb_node *node,
         cursor = rb_parent(cursor);
     }
 
-	rb_root(tree) = cursor;
-
 	// actually delete the node now
     __rb_move_and_delete(successor, target, copy);
 
 	// post-deletion check to see if tree has been cleared
     if (RB_EMPTY_NODE(rb_root(tree))) {                             
         rb_root(tree) = NULL;
-    }
+    } else {
+		rb_root(tree) = cursor;
+	}
 }
 
 void rb_delete_lcached(rb_tree_lcached *root, rb_node *node,
