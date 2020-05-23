@@ -104,6 +104,8 @@ static inline void __rb_replace_child(rb_node *root, rb_node *old, rb_node *nw) 
 
     if (rb_left(root) == old) rb_left(root) = nw;
     else if (rb_right(root) == old) rb_right(root) = nw;
+
+	__rb_set_parent(nw, root);
 }
 
 /**
@@ -520,7 +522,7 @@ const rb_node *rb_prev(const rb_node *node) {
 static inline const rb_node *__rb_node_successor(const rb_node *target) {
 	rb_node *successor;
 
-	if (rb_left(successor) && rb_right(successor)) {
+	if (rb_left(target) && rb_right(target)) {
 		successor = (rb_node *) rb_next(target);
 	} else if (!rb_right(target)) {
 		successor = rb_left(target);
@@ -581,11 +583,13 @@ static inline void __rb_delete_rebalance(rb_node *node) {
         // if we hit the root we're done
         parent = rb_parent(node);
         if (parent == NULL) {
+			__rb_set_black(node);
             break;
         }
 
 		// deleting red node doesn't do anything bad
-		if (rb_is_red(node) || rb_is_red(parent)) {
+		if (rb_is_red(node)) {
+			__rb_set_black(node);
 			break;
 		}
 
@@ -610,7 +614,7 @@ static inline void __rb_delete_rebalance(rb_node *node) {
         // if the nephew / niece can't take the black recolor, try to propagate it up
         if (rb_is_black(sibling_lchild) && rb_is_black(sibling_rchild)) {
 	    	__rb_set_red(sibling);
-            node = parent;
+			node = parent;
 			continue;
         }
 
@@ -619,9 +623,8 @@ static inline void __rb_delete_rebalance(rb_node *node) {
 
             // if the only red available is on the left side of the sibling, pull the red up and adjust black height
             if (rb_is_black(sibling_rchild)) {
-				// __rb_set_black(sibling_lchild);
-				// __rb_set_red(sibling);
-				__rb_swap_colors(sibling, sibling_lchild);
+				__rb_set_black(sibling_lchild);
+				__rb_set_red(sibling);
 
                 __rb_right_rotate(sibling);		// rl
      
@@ -629,21 +632,20 @@ static inline void __rb_delete_rebalance(rb_node *node) {
 				sibling_lchild = sibling ? rb_left(sibling) : NULL;
         		sibling_rchild = sibling ? rb_right(sibling) : NULL;
             }
-assert(!RB_EMPTY_NODE(node));
+
             // terminal case pulls the red through and out of the system
-            __rb_set_color(sibling, rb_color(parent));
+			__rb_set_color(sibling, rb_color(parent));
             __rb_set_black(parent);
             __rb_set_black(sibling_rchild);
             __rb_left_rotate(parent);
-assert(!RB_EMPTY_NODE(node));
+
             break;
         } else {
 
             // if we're in the LR case specifically (the ONLY red child is on the right)
             if (rb_is_black(sibling_lchild)) {
-                __rb_swap_colors(sibling, sibling_rchild);  // pull the red up
-				// __rb_set_black(sibling_rchild);
-				// __rb_set_red(sibling);
+				__rb_set_black(sibling_rchild); // pull the red up
+				__rb_set_red(sibling);
 
                 __rb_left_rotate(sibling);
 
@@ -660,8 +662,6 @@ assert(!RB_EMPTY_NODE(node));
             break;
         }
 	}
-
-	__rb_set_black(node);
 }
 
 /**
