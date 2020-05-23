@@ -6,7 +6,7 @@
  */
 
 #include "rbtree.h"
-#include <assert.h>
+
 /**
  *	Helper functions for __rb_parent_color member of rb_node.
  */
@@ -577,8 +577,6 @@ static inline void __rb_delete_rebalance(rb_node *node) {
     rb_node *sibling_lchild, *sibling_rchild;
 
     for (;;) {
-
-		assert(!RB_EMPTY_NODE(node));
 
         // if we hit the root we're done
         parent = rb_parent(node);
