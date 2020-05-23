@@ -535,6 +535,10 @@ static inline const rb_node *__rb_node_successor(const rb_node *target) {
     return successor;
 }
 
+/**
+ * Deletes a node and relinks subtrees around it.
+ */
+
 static inline void __rb_delete_node(rb_node *target) {
 	rb_node *child;
 
@@ -545,6 +549,10 @@ static inline void __rb_delete_node(rb_node *target) {
     __rb_replace_child(rb_parent(target), target, child);
     __rb_node_clear(target);
 }
+
+/**
+ * Basic copy-and-remove algorithm used by BST basic delete.
+ */
 
 static inline void __rb_move_and_delete(rb_node *src, rb_node *dst,
                                         void (*copy)(const void *src, void *dst)) {
@@ -557,14 +565,9 @@ static inline void __rb_move_and_delete(rb_node *src, rb_node *dst,
 	}
 }
 
-// TODO: Case handling in discrete functions like insert(), for instance this one
-
-static void __rb_del_relative_recolor(rb_node *sibling, rb_node *parent) {
-	__rb_set_black(sibling); // pull the red up
-	__rb_set_red(parent);
-
-	if (sibling == rb_right(parent)) __rb_left_rotate(parent);  // reconfigure the tree for recoloring
-	else __rb_right_rotate(parent);
+static inline void __rb_delete_basic(rb_node *successor, rb_node *target,
+										void (*copy)(const void *src, void *dst)) {
+	__rb_move_and_delete(successor, target, copy);
 }
 
 /**
@@ -691,7 +694,7 @@ void rb_delete(rb_tree *tree, rb_node *node,
     }
 
 	// actually delete the node now
-    __rb_move_and_delete(successor, target, copy);
+	__rb_delete_basic(successor, target, copy);
 
 	// post-deletion check to see if tree has been cleared
     if (RB_EMPTY_NODE(rb_root(tree))) {                             
