@@ -850,9 +850,10 @@ void rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const r
  */
 void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
-	/* check if the min of the tree changed */
+	/* check if the min of the tree changed. if it did, slide the min pointer forward */
     bool min_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_min(tree)) == 0) min_changed = true;
+	if (min_changed) rb_min(tree) = rb_next(node);
 
 	/* delete, update references, do whatever you need to do */
     rb_tree_delete_at((rb_tree_t *) tree, node, copy);
@@ -860,8 +861,6 @@ void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*c
 	/* then update the min */
 	if (rb_is_empty(tree)) {
 		rb_min(tree) = NULL;
-    } else if (min_changed) {
-        rb_min(tree) = (rb_iterator_t) rb_first((rb_tree_t *) tree);
     }
 }
 
@@ -876,9 +875,10 @@ void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*c
  */
 void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
-	/* check if the max of the tree changed */
+	/* check if the max of the tree changed. if it did, slide the max pointer forward */
     bool max_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) == 0) max_changed = true;
+	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
     rb_tree_delete_at((rb_tree_t *) tree, node, copy);
@@ -886,8 +886,6 @@ void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*c
 	/* then update the max */
     if (rb_is_empty(tree)) {
 		rb_max(tree) = NULL;
-    } else if (max_changed) {
-        rb_max(tree) = (rb_iterator_t) rb_last((rb_tree_t *) tree);
     }
 }
 
@@ -902,24 +900,23 @@ void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*c
  */
 void rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
-	/* check if the min of the tree changed */
-	bool min_changed = false;
+	/* check if the min of the tree changed. if if it did, slide the min pointer forward */
+    bool min_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_min(tree)) == 0) min_changed = true;
+	if (min_changed) rb_min(tree) = rb_next(node);
 
+	/* check if the max of the tree changed. if it did, slide the max pointer forward */
     bool max_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) == 0) max_changed = true;
+	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
     rb_tree_delete_at((rb_tree_t *) tree, node, copy);
 
-	/* then update the max */
+	/* then update the max and min*/
     if (rb_is_empty(tree)) {
 		rb_min(tree) = NULL;
 		rb_max(tree) = NULL;
-    } else if (min_changed) {
-        rb_min(tree) = (rb_iterator_t) rb_first((rb_tree_t *) tree);
-    } else if (max_changed) {
-        rb_max(tree) = (rb_iterator_t) rb_last((rb_tree_t *) tree);
     }
 }
 
