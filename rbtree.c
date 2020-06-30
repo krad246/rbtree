@@ -810,9 +810,9 @@ static inline void __rb_delete_rebalance(rb_node_t *node) {
  * @return Iterator to the next element.
  */
 rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
-	RB_NULL_CHECK(tree);
-	RB_NULL_CHECK(node);
-	RB_NULL_CHECK(copy);
+	RB_NULL_CHECK(tree, NULL);
+	RB_NULL_CHECK(node, NULL);
+	RB_NULL_CHECK(copy, NULL);
 
 	rb_node_t *replacement, *cursor;
 
