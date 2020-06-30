@@ -219,27 +219,29 @@ void rb_tree_lrcached_init(rb_tree_lrcached_t *tree) {
 
 /** @} */
 
-
-
-/**
- *	Fetches the other child of the given node's parent, if it exists.
- */
-static inline rb_node_t *__rb_sibling(const rb_node_t *node) {
-
-    rb_node_t *parent, *sibling;
-    parent = node ? rb_parent(node) : NULL;
-
-    if (parent == NULL || node == NULL) sibling = NULL;
-    else if (rb_left(parent) == node) sibling = rb_right(parent);
-    else sibling = rb_left(parent);
-
-    return sibling;
-}
-
 /**
  * @defgroup rb_insertion Red-black tree insertion functions (and helpers)
  * @{
  */
+
+/**
+ *	@brief Fetches the other child of the given node's parent, if it exists.
+ */
+static inline rb_node_t *__rb_sibling(const rb_node_t *node) {
+	RB_NULL_CHECK(node, NULL);
+    
+	rb_node_t *parent, *sibling;
+
+	/* there's no sibling if we're the root! */
+    parent = node ? rb_parent(node) : NULL;
+	if (parent == NULL) return NULL;
+
+	/* get the opposite pointer from what the parent sees you as */
+    if (rb_left(parent) == node) sibling = rb_right(parent);
+    else sibling = rb_left(parent);
+
+    return sibling;
+}
 
 /**
  * @brief Performs a standard BST insert.
@@ -381,37 +383,66 @@ static inline void __rb_insert_rebalance(rb_node_t *node) {
 
 /**
  * @fn rb_tree_insert_at
- * @brief Inserts a node into an rb_tree as close as possible to the provided iterator.
+ * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator.
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Pointer to an rb_node instance embedded in something else.
  * @param[in] hint Pointer to a valid rb_node used as a starting position for the insertion.
  * @param[in] cmp Comparator callback used to traverse the tree.
- * @details Empty trees and NULL hints are not supported.
  */
 void rb_tree_insert_at(rb_tree_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right)) {
 	RB_NULL_CHECK(tree);
-	RB_NULL_CHECK(rb_root(tree));
 	RB_NULL_CHECK(node);
 	RB_NULL_CHECK(hint);
 	RB_NULL_CHECK(cmp);
 
-	/* the node needs to be fresh and must not come in corrupted */
-	__rb_node_init(node);
-	__rb_insert_basic(hint, node, cmp);
-    __rb_insert_rebalance(node);
+	/**
+	 * check that the node can fit in this window, i.e. the hint is valid.
+	 * first, fetch the other edge of the window where the node should be slotted.
+	 */
+	const rb_iterator_t next_pos = rb_next(hint);
+
+	/* first check the left edge and see if the node can be placed after the hint */
+	int hint_left_cmp = cmp((const rb_node_t *) hint, (const rb_node_t *) node);
 
 	/** 
-	 * 'node' (and possibly the whole tree have since been nodified 
-	 * so we trace 'node' back up to find the new root, and then save that 
+	 * then check the right edge, and see if it suggests that the node is appropriately placed.
+	 * a NULL right edge is fine, that just means we are appending to the right edge of the tree.
 	 */
-    while (rb_parent(node) != NULL) {
-        node = rb_parent(node);
-    }
+	int hint_right_cmp = next_pos ? cmp((const rb_node_t *) next_pos, (const rb_node_t *) node) : 0;
 
-    rb_root(tree) = node;
+	/* we default to a standard root-anchored insert if the hint is bad. */
+	bool hint_is_less = (hint_left_cmp < 0);
+	bool hint_successor_is_more = (hint_right_cmp >= 0);
+	bool hint_is_valid = hint_is_less && hint_successor_is_more;
+	if (hint_is_valid) {
+
+		/* the node needs to be fresh and must not come in corrupted */
+		__rb_node_init(node);
+
+		/* insert it starting from the hint */
+		__rb_insert_basic(hint, node, cmp);
+		__rb_insert_rebalance(node);
+
+		/** 
+		 * 'node' (and possibly the whole tree have since been nodified 
+		 * so we trace 'node' back up to find the new root, and then save that 
+		 */
+		while (rb_parent(node) != NULL) {
+			node = rb_parent(node);
+		}
+
+		rb_root(tree) = node;
+	} else rb_tree_insert(tree, node, cmp);
 }
 
-
+/**
+ * @fn rb_tree_lcached_insert_at
+ * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the min.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Pointer to an rb_node instance embedded in something else.
+ * @param[in] hint Pointer to a valid rb_node used as a starting position for the insertion.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ */
 void rb_tree_lcached_insert_at(rb_tree_lcached_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(rb_root(tree));
@@ -425,7 +456,14 @@ void rb_tree_lcached_insert_at(rb_tree_lcached_t *tree, rb_node_t *node, rb_iter
 	rb_tree_insert_at(tree, node, hint, cmp);
 }
 
-
+/**
+ * @fn rb_tree_rcached_insert_at
+ * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the max.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Pointer to an rb_node instance embedded in something else.
+ * @param[in] hint Pointer to a valid rb_node used as a starting position for the insertion.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ */
 void rb_tree_rcached_insert_at(rb_tree_rcached_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(rb_root(tree));
@@ -439,7 +477,14 @@ void rb_tree_rcached_insert_at(rb_tree_rcached_t *tree, rb_node_t *node, rb_iter
 	rb_tree_insert_at(tree, node, hint, cmp);
 }
 
-
+/**
+ * @fn rb_tree_insert_at
+ * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the min and the max.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Pointer to an rb_node instance embedded in something else.
+ * @param[in] hint Pointer to a valid rb_node used as a starting position for the insertion.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ */
 void rb_tree_lrcached_insert_at(rb_tree_lrcached_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right)) {	
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(rb_root(tree));
@@ -475,7 +520,21 @@ void rb_tree_insert(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t
 
 	/* the 'hint' is the root because the minimum distance to the root arrangement is a balanced tree */
     } else {
-		rb_tree_insert_at(tree, node, rb_root(tree), cmp);
+
+		/* the node needs to be fresh and must not come in corrupted */
+		__rb_node_init(node);
+		__rb_insert_basic(rb_root(tree), node, cmp);
+		__rb_insert_rebalance(node);
+
+		/** 
+		 * 'node' (and possibly the whole tree have since been nodified 
+		 * so we trace 'node' back up to find the new root, and then save that 
+		 */
+		while (rb_parent(node) != NULL) {
+			node = rb_parent(node);
+		}
+
+		rb_root(tree) = node;
 	}
 }
 
@@ -551,18 +610,28 @@ void rb_tree_lrcached_insert(rb_tree_lrcached_t *tree, rb_node_t *node, int (*cm
 /** @} */
 
 /**
- * Basic BST deletion algorithm components - no balancing yet!
+ * @defgroup rb_deletion Red-black tree deletion functions (and helpers)
+ * @{
  */
 
+/**
+ * @brief Finds the first element greater than the target node.
+ */
 static inline const rb_node_t *__rb_node_successor(const rb_node_t *target) {
+	RB_NULL_CHECK(target, NULL);
 	rb_node_t *successor;
 
+	/* if the target is not a leaf node, the one right after is the successor */
 	if (rb_left(target) && rb_right(target)) {
-		successor = (rb_node_t *) rb_prev((rb_iterator_t) target);
+		successor = (rb_node_t *) rb_next((rb_iterator_t) target);
+
+	/* if there is 1 child, that's always the successor */
 	} else if (!rb_right(target)) {
 		successor = rb_left(target);
 	} else if (!rb_left(target)) {
 		successor = rb_right(target);
+
+	/* no children means there's no replacement for you and you just get deleted */
 	} else {
 		successor = NULL;
 	}
@@ -571,10 +640,36 @@ static inline const rb_node_t *__rb_node_successor(const rb_node_t *target) {
 }
 
 /**
- * Deletes a node and relinks subtrees around it.
+ * @brief Finds the first element greater than the target node.
  */
+static inline const rb_node_t *__rb_node_predecessor(const rb_node_t *target) {
+	RB_NULL_CHECK(target, NULL);
+	rb_node_t *successor;
 
+	/* if the target is not a leaf node, the one right before is the successor */
+	if (rb_left(target) && rb_right(target)) {
+		successor = (rb_node_t *) rb_prev((rb_iterator_t) target);
+
+	/* if there is 1 child, that's always the successor */
+	} else if (!rb_right(target)) {
+		successor = rb_left(target);
+	} else if (!rb_left(target)) {
+		successor = rb_right(target);
+
+	/* no children means there's no replacement for you and you just get deleted */
+	} else {
+		successor = NULL;
+	}
+
+    return successor;
+}
+
+/**
+ * @brief Deletes a node by connecting its subtrees to its parent.
+ */
 static inline void __rb_delete_node(rb_node_t *target) {
+	RB_NULL_CHECK(target);
+
 	rb_node_t *child;
 
 	if (rb_left(target)) child = rb_left(target);
@@ -582,107 +677,111 @@ static inline void __rb_delete_node(rb_node_t *target) {
 	else child = NULL;
 
     __rb_replace_child(rb_parent(target), target, child);
+	__rb_set_parent(child, rb_parent(target));
     __rb_node_clear(target);
 }
 
 /**
- * Basic copy-and-remove algorithm used by BST basic delete.
+ * @brief Basic copy-and-remove algorithm used by BST basic delete.
+ * @param[in] src Deletion target, i.e. copy source node.
+ * @param[in] dst Node that gets replaced.
+ * @param[in] copy Copy callback for the deletion.
  */
+static inline void __rb_move_and_delete(rb_node_t *src, rb_node_t *dst, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
-static inline void __rb_move_and_delete(rb_node_t *src, rb_node_t *dst,
-                                        void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
-
+	/* if we had 1 child (so a replacement) then we copy the replacement and delete that */
 	if (src) {
 		copy((void *) src, (void *) dst);
     	__rb_delete_node(src);
+
+	/* else we just delete ourselves */
 	} else {
 		__rb_delete_node(dst);
 	}
 }
 
-static inline void __rb_delete_basic(rb_node_t *successor, rb_node_t *target,
-										void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
-	__rb_move_and_delete(successor, target, copy);
+static inline void __rb_delete_basic(rb_node_t *replacement, rb_node_t *target, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+	__rb_move_and_delete(replacement, target, copy);
 }
 
 /**
- * RB tree rebalancer.
+ * @brief Performs rb_delete_fixup on the subtree centered on node, correcting all surrounding trees.
  */
-
 static inline void __rb_delete_rebalance(rb_node_t *node) {
-
     rb_node_t *parent, *sibling;
     rb_node_t *sibling_lchild, *sibling_rchild;
 
     for (;;) {
-
-        // if we hit the root we're done
         parent = rb_parent(node);
+
+		/* if we hit the root, we're done, and the root must always be black. */
         if (parent == NULL) {
 			__rb_set_black(node);
             break;
         }
 
-		// deleting red node doesn't do anything bad
+		/* deleting a red doesn't break any invariants. */
 		if (rb_is_red(node)) {
 			__rb_set_black(node);
 			break;
 		}
 
-        // otherwise black height property is in violation and we'll need the sibling, etc.
+        /* otherwise black height property is in violation and we'll need the sibling, etc. */
         sibling = __rb_sibling(node);
 
-        // if we have a red nearby, let's try to dump the double black into that nearby red... that'll prep us for the next case
+        /* if we have a red nearby, let's try to dump the double black into that nearby red... 
+		 * that'll prep us for the next case
+		 */
         if (rb_is_red(sibling)) {
-			__rb_set_black(sibling); // pull the red up
+			__rb_set_black(sibling); 									/* migrate the red upwards */
 			__rb_set_red(parent);
 
-			if (sibling == rb_right(parent)) __rb_left_rotate(parent);  // reconfigure the tree for recoloring
+			if (sibling == rb_right(parent)) __rb_left_rotate(parent);  /* rotation will make a black w/ red children tree. */
 			else __rb_right_rotate(parent);
-			
-			sibling = __rb_sibling(node);
+
+			sibling = __rb_sibling(node);								/* our frame of reference has now changed. */
         }
 
-        // new sibling is ALWAYS black, but we might be able to dump the black somewhere else
+        /* new sibling is ALWAYS black, so we have to dump the double black somewhere else */
         sibling_lchild = sibling ? rb_left(sibling) : NULL;
         sibling_rchild = sibling ? rb_right(sibling) : NULL;
 
-        // if the nephew / niece can't take the black recolor, try to propagate it up
+        /* if the nephew / niece can't take the black recolor, try to propagate it up and dissolve it further up */
         if (rb_is_black(sibling_lchild) && rb_is_black(sibling_rchild)) {
 	    	__rb_set_red(sibling);
 			node = parent;
 			continue;
         }
 
-        // otherwise, we can do some rotations to find a red to drop the double-black into.
+        /* otherwise, we can do some rotations to find a red to drop the double-black into. */
         if (sibling == rb_right(parent)) {
 
-            // if the only red available is on the left side of the sibling, pull the red up and adjust black height
+            /* if the only red available is on the left side of the sibling, pull the red up and adjust black height */
             if (rb_is_black(sibling_rchild)) {
+
+				/* right-left case right here */
 				__rb_set_black(sibling_lchild);
 				__rb_set_red(sibling);
-
-                __rb_right_rotate(sibling);		// rl
+                __rb_right_rotate(sibling);	
      
 				sibling = __rb_sibling(node);
 				sibling_lchild = sibling ? rb_left(sibling) : NULL;
         		sibling_rchild = sibling ? rb_right(sibling) : NULL;
             }
 
-            // terminal case pulls the red through and out of the system
+            /* right-right case */
 			__rb_set_color(sibling, rb_color(parent));
             __rb_set_black(parent);
             __rb_set_black(sibling_rchild);
             __rb_left_rotate(parent);
-
             break;
+
         } else {
 
-            // if we're in the LR case specifically (the ONLY red child is on the right)
+            /* left-right case */
             if (rb_is_black(sibling_lchild)) {
-				__rb_set_black(sibling_rchild); // pull the red up
+				__rb_set_black(sibling_rchild);
 				__rb_set_red(sibling);
-
                 __rb_left_rotate(sibling);
 
 				sibling = __rb_sibling(node);
@@ -690,41 +789,49 @@ static inline void __rb_delete_rebalance(rb_node_t *node) {
         		sibling_rchild = sibling ? rb_right(sibling) : NULL;
             }
 
+			/* left-left case */
             __rb_set_color(sibling, rb_color(parent));
             __rb_set_black(parent);
             __rb_set_black(sibling_lchild);
             __rb_right_rotate(parent);
-			
             break;
         }
 	}
 }
 
 /**
- * Deletes a node from the tree given an iterator to an element.
+ * @fn rb_tree_delete_at
+ * @brief Deletes a node from a rbtree at an iterator.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
  */
-
-void rb_tree_delete_at(rb_tree_t *tree, rb_node_t *node, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+void rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
 	RB_NULL_CHECK(copy);
 
-	rb_node_t *successor, *cursor;
+	rb_node_t *replacement, *cursor;
 
-    successor = (rb_node_t *) __rb_node_successor(node);    
-	if (successor) __rb_delete_rebalance(successor);	
+	/* we don't need to find the node, only its replacement */
+    replacement = (rb_node_t *) __rb_node_predecessor(node);    
+
+	/* then we rebalance and propagate changes from the base up */
+	if (replacement) __rb_delete_rebalance(replacement);	
 	else __rb_delete_rebalance(node);
 	
-	// follow the tree up to retrace root if it changed
+	/* retrace the root because the rotations might've changed it */
     cursor = node;
 	while (rb_parent(cursor) != NULL) {
         cursor = rb_parent(cursor);
     }
 
-	// actually delete the node now
-	__rb_delete_basic(successor, node, copy);
+	/* now that all the references in the tree are correctly updated and valid, we can delete this node problem-free */
+	__rb_delete_basic(replacement, node, copy);
 
-	// post-deletion check to see if tree has been cleared
+	/* if the root is cleared, then the tree doesn't exist anymore */
     if (rb_is_disconnected(rb_root(tree))) {                             
         rb_root(tree) = NULL;
     } else {
@@ -732,27 +839,51 @@ void rb_tree_delete_at(rb_tree_t *tree, rb_node_t *node, void (*copy)(const rb_n
 	}
 }
 
-void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node,
-                       int (*cmp)(const rb_node_t *left, const rb_node_t *right), 
-					   void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+/**
+ * @fn rb_tree_lcached_delete_at
+ * @brief Deletes a node from a rbtree at an iterator. Updates the min.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
+ */
+void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+
+	/* check if the min of the tree changed */
     bool min_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_min(tree)) == 0) min_changed = true;
 
+	/* delete, update references, do whatever you need to do */
     rb_tree_delete_at((rb_tree_t *) tree, node, copy);
-    if (rb_is_empty(tree)) {
+    
+	/* then update the min */
+	if (rb_is_empty(tree)) {
 		rb_min(tree) = NULL;
     } else if (min_changed) {
         rb_min(tree) = (rb_iterator_t) rb_first((rb_tree_t *) tree);
     }
 }
 
-void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node,
-						int (*cmp)(const rb_node_t *left, const rb_node_t *right),
-                       	void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+/**
+ * @fn rb_tree_rcached_delete_at
+ * @brief Deletes a node from a rbtree at an iterator. Updates the max.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
+ */
+void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+
+	/* check if the max of the tree changed */
     bool max_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) == 0) max_changed = true;
 
+	/* delete, update references, do whatever you need to do */
     rb_tree_delete_at((rb_tree_t *) tree, node, copy);
+
+	/* then update the max */
     if (rb_is_empty(tree)) {
 		rb_max(tree) = NULL;
     } else if (max_changed) {
@@ -760,15 +891,28 @@ void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node,
     }
 }
 
+/**
+ * @fn rb_tree_lrcached_delete_at
+ * @brief Deletes a node from a rbtree at an iterator. Updates the min and the max.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
+ */
 void rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
+	/* check if the min of the tree changed */
 	bool min_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_min(tree)) == 0) min_changed = true;
 
     bool max_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) == 0) max_changed = true;
 
+	/* delete, update references, do whatever you need to do */
     rb_tree_delete_at((rb_tree_t *) tree, node, copy);
+
+	/* then update the max */
     if (rb_is_empty(tree)) {
 		rb_min(tree) = NULL;
 		rb_max(tree) = NULL;
@@ -780,9 +924,14 @@ void rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t node, in
 }
 
 /**
- * Deletes a node from the tree. Requires a comparator to find the element and a copy function to exchange elements.
+ * @fn rb_tree_delete
+ * @brief Deletes a node from an rbtree after finding it manually.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
  */
-
 void rb_tree_delete(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
@@ -798,6 +947,15 @@ void rb_tree_delete(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t
     rb_tree_delete_at(tree, target, copy);
 }
 
+/**
+ * @fn rb_tree_lcached_delete
+ * @brief Deletes a node from an rbtree after finding it manually. Updates the min.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
+ */
 void rb_tree_lcached_delete(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
@@ -813,6 +971,15 @@ void rb_tree_lcached_delete(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)
     rb_tree_lcached_delete_at(tree, target, cmp, copy);
 }
 
+/**
+ * @fn rb_tree_rcached_delete
+ * @brief Deletes a node from an rbtree after finding it manually. Updates the max.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
+ */
 void rb_tree_rcached_delete(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
@@ -828,6 +995,15 @@ void rb_tree_rcached_delete(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)
     rb_tree_rcached_delete_at(tree, target, cmp, copy);
 }
 
+/**
+ * @fn rb_tree_lrcached_delete
+ * @brief Deletes a node from an rbtree after finding it manually. Updates the min and the max.
+ * @param[in] tree Pointer to an rb_tree instance.
+ * @param[in] node Iterator into the tree.
+ * @param[in] hint Pointer to a valid rb.
+ * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[in] copy Copy callback used for successor node deletion.
+ */
 void rb_tree_lrcached_delete(rb_tree_lrcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
