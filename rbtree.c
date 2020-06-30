@@ -807,8 +807,9 @@ static inline void __rb_delete_rebalance(rb_node_t *node) {
  * @param[in] hint Pointer to a valid rb.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
+ * @return Iterator to the next element.
  */
-void rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
 	RB_NULL_CHECK(copy);
@@ -829,6 +830,7 @@ void rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const r
     }
 
 	/* now that all the references in the tree are correctly updated and valid, we can delete this node problem-free */
+	rb_iterator_t next_node = rb_next(node);
 	__rb_delete_basic(replacement, node, copy);
 
 	/* if the root is cleared, then the tree doesn't exist anymore */
@@ -837,6 +839,8 @@ void rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const r
     } else {
 		rb_root(tree) = cursor;
 	}
+
+	return next_node;
 }
 
 /**
@@ -847,8 +851,9 @@ void rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const r
  * @param[in] hint Pointer to a valid rb.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
+ * @return Iterator to the next element.
  */
-void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
 	/* check if the min of the tree changed. if it did, slide the min pointer forward */
     bool min_changed = false;
@@ -856,12 +861,14 @@ void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*c
 	if (min_changed) rb_min(tree) = rb_next(node);
 
 	/* delete, update references, do whatever you need to do */
-    rb_tree_delete_at((rb_tree_t *) tree, node, copy);
+    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, copy);
     
 	/* then update the min */
 	if (rb_is_empty(tree)) {
 		rb_min(tree) = NULL;
     }
+
+	return next_node;
 }
 
 /**
@@ -872,8 +879,9 @@ void rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*c
  * @param[in] hint Pointer to a valid rb.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
+ * @return Iterator to the next element.
  */
-void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
 	/* check if the max of the tree changed. if it did, slide the max pointer forward */
     bool max_changed = false;
@@ -881,12 +889,14 @@ void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*c
 	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
-    rb_tree_delete_at((rb_tree_t *) tree, node, copy);
+    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, copy);
 
 	/* then update the max */
     if (rb_is_empty(tree)) {
 		rb_max(tree) = NULL;
     }
+
+	return next_node;
 }
 
 /**
@@ -897,8 +907,9 @@ void rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*c
  * @param[in] hint Pointer to a valid rb.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
+ * @return Iterator to the next element.
  */
-void rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
 	/* check if the min of the tree changed. if if it did, slide the min pointer forward */
     bool min_changed = false;
@@ -911,13 +922,15 @@ void rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t node, in
 	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
-    rb_tree_delete_at((rb_tree_t *) tree, node, copy);
+    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, copy);
 
 	/* then update the max and min*/
     if (rb_is_empty(tree)) {
 		rb_min(tree) = NULL;
 		rb_max(tree) = NULL;
     }
+
+	return next_node;
 }
 
 /**
@@ -1161,12 +1174,12 @@ const rb_iterator_t rb_prev(const rb_iterator_t node) {
     RB_NULL_CHECK(node, NULL);
     if (rb_is_disconnected(node)) return NULL;
 
-	// if there is a left subtree to traverse, gotta go as far right as possible on that side
+	/* if there is a left subtree to traverse, gotta go as far right as possible on that side */
     if (rb_left(node)) return __rb_last(rb_left(node));
 
 	/* --- */
 
-	// else move up until we are on the right side of something
+	/* else move up until we are on the right side of something */
     rb_node_t *cursor, *cursor_parent;
 	cursor = (rb_iterator_t) node;
 	cursor_parent = rb_parent(cursor);
