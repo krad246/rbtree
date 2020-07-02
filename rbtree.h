@@ -22,6 +22,15 @@ extern "C" {
  */
 #define RB_UNSAFE 1
 
+#ifndef RB_UNSAFE
+#error "RB_UNSAFE configuration option undefined"
+#endif
+
+/**
+ * @defgroup rb_structures Structure definitions for the library
+ * @{
+ */
+
 /**
  * @enum rb_color 
  * @brief Red-black tree node colors.
@@ -86,18 +95,22 @@ typedef struct rb_tree_rcached {
 } rb_tree_rcached_t;
 
 /**
- * @struct rb_tree_lcached
- * @brief Red-black tree wrapper class; additionally caches the logical min of the tree.
+ * @struct rb_tree_lrcached
+ * @brief Red-black tree wrapper class; additionally caches the logical min and max of the tree.
  * @var rb_tree::root
  * Pointer to the root of the actual tree.
  * @var rb_tree::min
  * Minimum element in the tree.
+ * @var rb_tree::max
+ * Maximum element in the tree.
  */
 typedef struct rb_tree_lrcached {
     rb_node_t *root;
     rb_iterator_t min;
     rb_iterator_t max;
 } rb_tree_lrcached_t;
+
+/** @} */
 
 /**
  * @cond PRIVATE
@@ -133,7 +146,47 @@ typedef struct rb_tree_lrcached {
 #define container_of(ptr, type, member) 					({                      									\
         														const typeof(((type *) 0)->member) *__mptr = (ptr);    	\
        			 												(type *)((char *) __mptr - offsetof(type, member));		\
-															})															
+															})	
+
+/** 
+ * @defgroup rb_check Helper pointer check macros
+ * @{
+ */
+
+/* Base case pointer checker with no return value */
+#define __RB_NULL_CHECK(ptr)								do {\
+																if (!RB_UNSAFE)	{			\
+																	if (!(ptr)) {			\
+																		return;				\
+																	}						\
+																}							\
+															} while (0)				
+
+/* Base case pointer checker with return value */
+#define __RB_NULL_CHECK_V(ptr, ret)							do {\
+																if (!RB_UNSAFE)	{			\
+																	if (!(ptr)) {			\
+																		return (ret);		\
+																	}						\
+																}							\
+															} while (0)						
+
+/* 
+ * Use the variadic arguments to change _FUNC to the appropriate function,
+ * i.e. a single argument x shows up with _1 = x, _2 = __RB_NULL_CHECK_V, and 
+ * _FUNC = __RB_NULL_CHECK, which returns _FUNC to __RB_NULL_CHECK, subsequently
+ * invoked with x as the argument. 
+ * 
+ * Similarly, passing 2 arguments slides _FUNC over to cover __RB_NULL_CHECK_V,
+ * returning the version of RB_NULL_CHECK that accepts a return value.
+ * 
+ * More than 2 arguments and _FUNC is no longer defined, allowing for type safety.
+ */
+
+#define __RB_NULL_CHECK_S(_1, _2, _FUNC, ...) 				_FUNC
+#define RB_NULL_CHECK(...) 									__RB_NULL_CHECK_S(__VA_ARGS__, __RB_NULL_CHECK_V, __RB_NULL_CHECK)(__VA_ARGS__)
+
+/** @} */														
 
 /** 
  * @endcond
@@ -292,7 +345,7 @@ void rb_tree_lcached_insert_at(rb_tree_lcached_t *tree, rb_node_t *node, rb_iter
 void rb_tree_rcached_insert_at(rb_tree_rcached_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
 
 /**
- * @fn rb_tree_insert_at
+ * @fn rb_tree_lrcached_insert_at
  * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the min and the max.
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Pointer to an rb_node instance embedded in something else.

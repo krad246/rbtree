@@ -8,46 +8,6 @@
 
 #include "rbtree.h"
 
-/** 
- * @defgroup rb_check Helper pointer check macros
- * @{
- */
-
-/* Base case pointer checker with no return value */
-#define __RB_NULL_CHECK(ptr)								do {\
-																if (!RB_UNSAFE)	{			\
-																	if (!(ptr)) {			\
-																		return;				\
-																	}						\
-																}							\
-															} while (0)				
-
-/* Base case pointer checker with return value */
-#define __RB_NULL_CHECK_V(ptr, ret)							do {\
-																if (!RB_UNSAFE)	{			\
-																	if (!(ptr)) {			\
-																		return (ret);		\
-																	}						\
-																}							\
-															} while (0)						
-
-/* 
- * Use the variadic arguments to change _FUNC to the appropriate function,
- * i.e. a single argument x shows up with _1 = x, _2 = __RB_NULL_CHECK_V, and 
- * _FUNC = __RB_NULL_CHECK, which returns _FUNC to __RB_NULL_CHECK, subsequently
- * invoked with x as the argument. 
- * 
- * Similarly, passing 2 arguments slides _FUNC over to cover __RB_NULL_CHECK_V,
- * returning the version of RB_NULL_CHECK that accepts a return value.
- * 
- * More than 2 arguments and _FUNC is no longer defined, allowing for type safety.
- */
-
-#define __RB_NULL_CHECK_S(_1, _2, _FUNC, ...) 				_FUNC
-#define RB_NULL_CHECK(...) 									__RB_NULL_CHECK_S(__VA_ARGS__, __RB_NULL_CHECK_V, __RB_NULL_CHECK)(__VA_ARGS__)
-
-/** @} */
-
 /**
  * @defgroup rb_member_setters Helper functions for __rb_parent_color member of rb_node_t.
  * @{
@@ -478,7 +438,7 @@ void rb_tree_rcached_insert_at(rb_tree_rcached_t *tree, rb_node_t *node, rb_iter
 }
 
 /**
- * @fn rb_tree_insert_at
+ * @fn rb_tree_lrcached_insert_at
  * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the min and the max.
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Pointer to an rb_node instance embedded in something else.
