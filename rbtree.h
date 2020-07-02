@@ -20,10 +20,8 @@ extern "C" {
 /**
  * Undefine this if you want to get rid of the tree checks and safety features.
  */
-#define RB_UNSAFE 1
-
 #ifndef RB_UNSAFE
-#error "RB_UNSAFE configuration option undefined"
+#error "RB_UNSAFE build configuration option undefined"
 #endif
 
 /**
@@ -67,48 +65,6 @@ typedef rb_node_t *rb_iterator_t;
 typedef struct rb_tree {
     rb_node_t *root;
 } rb_tree_t;
-
-/**
- * @struct rb_tree_lcached
- * @brief Red-black tree wrapper class; additionally caches the logical min of the tree.
- * @var rb_tree::root
- * Pointer to the root of the actual tree.
- * @var rb_tree::min
- * Minimum element in the tree.
- */
-typedef struct rb_tree_lcached {
-	rb_node_t *root;
-    rb_iterator_t min;	
-} rb_tree_lcached_t;
-
-/**
- * @struct rb_tree_rcached
- * @brief Red-black tree wrapper class; additionally caches the logical max of the tree.
- * @var rb_tree::root
- * Pointer to the root of the actual tree.
- * @var rb_tree::max
- * Maximum element in the tree.
- */
-typedef struct rb_tree_rcached {
-    rb_node_t *root;
-    rb_iterator_t max;
-} rb_tree_rcached_t;
-
-/**
- * @struct rb_tree_lrcached
- * @brief Red-black tree wrapper class; additionally caches the logical min and max of the tree.
- * @var rb_tree::root
- * Pointer to the root of the actual tree.
- * @var rb_tree::min
- * Minimum element in the tree.
- * @var rb_tree::max
- * Maximum element in the tree.
- */
-typedef struct rb_tree_lrcached {
-    rb_node_t *root;
-    rb_iterator_t min;
-    rb_iterator_t max;
-} rb_tree_lrcached_t;
 
 /** @} */
 
@@ -205,12 +161,6 @@ typedef struct rb_tree_lrcached {
 /** Fetches the root node of the tree. */
 #define rb_root(tree)        								((tree)->root)
 
-/** Fetches the logical min of the tree. */
-#define rb_min(root)   										(root)->min
-
-/** Fetches the logical max of the tree. */
-#define rb_max(root)    									(root)->max
-
 /** Asserts if the tree root is null. */
 #define rb_is_empty(tree)  									(rb_root((tree)) == NULL)
 
@@ -294,27 +244,6 @@ typedef struct rb_tree_lrcached {
 void rb_tree_init(rb_tree_t *tree);
 
 /**
- * @fn rb_tree_lcached_init
- * @details Initializes the tree, then sets the min to NULL.
- * @param[in] tree Pointer to a min-cached rbtree.
- */
-void rb_tree_lcached_init(rb_tree_lcached_t *tree);
-
-/**
- * @fn rb_tree_rcached_init
- * @details Initializes the tree, then sets the max to NULL.
- * @param[in] tree Pointer to a max-cached rbtree.
- */
-void rb_tree_rcached_init(rb_tree_rcached_t *tree);
-
-/**
- * @fn rb_tree_lrcached_init
- * @details Combination of rb_tree_lcached_init and rb_tree_rcached_init
- * @param[in] tree Pointer to a lrcached_rbtree.
- */
-void rb_tree_lrcached_init(rb_tree_lrcached_t *tree);
-
-/**
  * @fn rb_tree_insert_at
  * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator.
  * @param[in] tree Pointer to an rb_tree instance.
@@ -325,36 +254,6 @@ void rb_tree_lrcached_init(rb_tree_lrcached_t *tree);
 void rb_tree_insert_at(rb_tree_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
 
 /**
- * @fn rb_tree_lcached_insert_at
- * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the min.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Pointer to an rb_node instance embedded in something else.
- * @param[in] hint Pointer to a valid rb_node used as a starting position for the insertion.
- * @param[in] cmp Comparator callback used to traverse the tree.
- */
-void rb_tree_lcached_insert_at(rb_tree_lcached_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
-
-/**
- * @fn rb_tree_rcached_insert_at
- * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the max.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Pointer to an rb_node instance embedded in something else.
- * @param[in] hint Pointer to a valid rb_node used as a starting position for the insertion.
- * @param[in] cmp Comparator callback used to traverse the tree.
- */
-void rb_tree_rcached_insert_at(rb_tree_rcached_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
-
-/**
- * @fn rb_tree_lrcached_insert_at
- * @brief Inserts a node into an rb_tree as close as possible to and after the provided iterator. Updates the min and the max.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Pointer to an rb_node instance embedded in something else.
- * @param[in] hint Pointer to a valid rb_node used as a starting position for the insertion.
- * @param[in] cmp Comparator callback used to traverse the tree.
- */
-void rb_tree_lrcached_insert_at(rb_tree_lrcached_t *tree, rb_node_t *node, rb_iterator_t hint, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
-
-/**
  * @fn rb_tree_insert
  * @brief Inserts a node into an rb_tree, guided by a comparator.
  * @param[in] tree Pointer to an rb_tree instance.
@@ -362,33 +261,6 @@ void rb_tree_lrcached_insert_at(rb_tree_lrcached_t *tree, rb_node_t *node, rb_it
  * @param[in] cmp Comparator callback used to traverse the tree.
  */
 void rb_tree_insert(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
-
-/**
- * @fn rb_tree_lcached_insert
- * @brief Inserts a node into an rb_tree, guided by a comparator. Maintains and updates a running min.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Pointer to an rb_node instance embedded in something else.
- * @param[in] cmp Comparator callback used to traverse the tree.
- */
-void rb_tree_lcached_insert(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
-
-/**
- * @fn rb_tree_rcached_insert
- * @brief Inserts a node into an rb_tree, guided by a comparator. Maintains and updates a running max.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Pointer to an rb_node instance embedded in something else.
- * @param[in] cmp Comparator callback used to traverse the tree.
- */
-void rb_tree_rcached_insert(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
-
-/**
- * @fn rb_tree_lrcached_insert
- * @brief Combination of rb_tree_rcached_insert and rb_tree_lcached_insert.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Pointer to an rb_node instance embedded in something else.
- * @param[in] cmp Comparator callback used to traverse the tree.
- */
-void rb_tree_lrcached_insert(rb_tree_lrcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right));
 
 /**
  * @fn rb_tree_delete_at
@@ -403,42 +275,6 @@ void rb_tree_lrcached_insert(rb_tree_lrcached_t *tree, rb_node_t *node, int (*cm
 rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const rb_node_t *src, rb_node_t *dst));
 
 /**
- * @fn rb_tree_lcached_delete_at
- * @brief Deletes a node from a rbtree at an iterator. Updates the min.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Iterator into the tree.
- * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
- * @param[in] copy Copy callback used for successor node deletion.
- * @return Iterator to the next element.
- */
-rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
-
-/**
- * @fn rb_tree_rcached_delete_at
- * @brief Deletes a node from a rbtree at an iterator. Updates the max.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Iterator into the tree.
- * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
- * @param[in] copy Copy callback used for successor node deletion.
- * @return Iterator to the next element.
- */
-rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
-
-/**
- * @fn rb_tree_lrcached_delete_at
- * @brief Deletes a node from a rbtree at an iterator. Updates the min and the max.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Iterator into the tree.
- * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
- * @param[in] copy Copy callback used for successor node deletion.
- * @return Iterator to the next element.
- */
-rb_iterator_t rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
-
-/**
  * @fn rb_tree_delete
  * @brief Deletes a node from an rbtree after finding it manually.
  * @param[in] tree Pointer to an rb_tree instance.
@@ -448,39 +284,6 @@ rb_iterator_t rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t
  * @param[in] copy Copy callback used for successor node deletion.
  */
 void rb_tree_delete(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
-
-/**
- * @fn rb_tree_lcached_delete
- * @brief Deletes a node from an rbtree after finding it manually. Updates the min.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Iterator into the tree.
- * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
- * @param[in] copy Copy callback used for successor node deletion.
- */
-void rb_tree_lcached_delete(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
-
-/**
- * @fn rb_tree_rcached_delete
- * @brief Deletes a node from an rbtree after finding it manually. Updates the max.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Iterator into the tree.
- * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
- * @param[in] copy Copy callback used for successor node deletion.
- */
-void rb_tree_rcached_delete(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
-
-/**
- * @fn rb_tree_lrcached_delete
- * @brief Deletes a node from an rbtree after finding it manually. Updates the min and the max.
- * @param[in] tree Pointer to an rb_tree instance.
- * @param[in] node Iterator into the tree.
- * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
- * @param[in] copy Copy callback used for successor node deletion.
- */
-void rb_tree_lrcached_delete(rb_tree_lrcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
 
 /**
  * @fn rb_find
