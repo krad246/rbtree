@@ -85,21 +85,20 @@ rb_iterator_t rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t
 	/* check if the min of the tree changed. if if it did, slide the min pointer forward */
     bool min_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_min(tree)) == 0) min_changed = true;
-	if (min_changed) rb_min(tree) = rb_next(rb_min(tree));
 
 	/* check if the max of the tree changed. if it did, slide the max pointer forward */
     bool max_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) == 0) max_changed = true;
-	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
     rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, deleted, copy);
 	
-	/* then update the max and min*/
-    if (rb_is_empty(tree)) {
-		rb_min(tree) = NULL;
-		rb_max(tree) = NULL;
-    }
+	/* then update the max and min */
+	if (min_changed) rb_min(tree) = rb_first((rb_tree_t *) tree);
+	else if (rb_is_empty(tree)) rb_min(tree) = NULL;
+
+	if (max_changed) rb_max(tree) = rb_last((rb_tree_t *) tree);
+    else if (rb_is_empty(tree)) rb_max(tree) = NULL;	
 
 	return next_node;
 }

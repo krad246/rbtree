@@ -78,15 +78,13 @@ rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t n
 	/* check if the max of the tree changed. if it did, slide the max pointer forward */
     bool max_changed = false;
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) == 0) max_changed = true;
-	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
     rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, deleted, copy);
 
 	/* then update the max */
-    if (rb_is_empty(tree)) {
-		rb_max(tree) = NULL;
-    }
+	if (max_changed) rb_max(tree) = rb_last((rb_tree_t *) tree);
+    else if (rb_is_empty(tree)) rb_max(tree) = NULL;	
 
 	return next_node;
 }
