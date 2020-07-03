@@ -80,7 +80,7 @@ rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_iterator_t n
 	if (min_changed) rb_min(tree) = rb_next(node);
 
 	/* delete, update references, do whatever you need to do */
-    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, copy);
+    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, NULL, copy);
     
 	/* then update the min */
 	if (rb_is_empty(tree)) {

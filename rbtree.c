@@ -589,18 +589,17 @@ static inline void __rb_delete_rebalance(rb_node_t *node) {
         }
 	}
 }
-
+#include <assert.h>
 /**
  * @fn rb_tree_delete_at
  * @brief Deletes a node from a rbtree at an iterator.
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Iterator into the tree.
  * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
  * @return Iterator to the next element.
  */
-rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, rb_iterator_t *deleted, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree, NULL);
 	RB_NULL_CHECK(node, NULL);
 	RB_NULL_CHECK(copy, NULL);
@@ -620,9 +619,35 @@ rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy
         cursor = rb_parent(cursor);
     }
 
-	/* now that all the references in the tree are correctly updated and valid, we can delete this node problem-free */
-	rb_iterator_t next_node = rb_next(node);
-	__rb_delete_basic(replacement, node, copy);
+	/**
+	 * The iterator to the next element will be the parent of the node deleted if it's a leaf,
+	 * or it will be the logical next node if it has multiple children.
+	 * 
+	 * We can delete the node problem-free as soon as we identify the next node correctly.
+	 */
+	rb_iterator_t next_node;
+	if (!replacement) {
+		if (deleted) *deleted = node;
+		next_node = rb_next(node);
+		__rb_delete_basic(replacement, node, copy);
+	} else {
+		if (deleted) *deleted = replacement;
+		__rb_delete_basic(replacement, node, copy);
+		next_node = rb_next(node);
+	}
+
+	if (node == rb_root(tree)) {
+		if ((rb_right(node) == NULL)) {
+			assert(next_node == NULL);
+		} else {
+			assert(next_node != NULL);
+		}
+	} else {
+		assert( (next_node != NULL) && (!rb_is_disconnected(next_node)) );
+	}
+
+	if (deleted) {assert (next_node != *deleted);
+	assert (*deleted != NULL);}
 
 	/* if the root is cleared, then the tree doesn't exist anymore */
     if (rb_is_disconnected(rb_root(tree))) {                             
@@ -655,7 +680,7 @@ void rb_tree_delete(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t
     target = (rb_node_t *) rb_find(tree, node, cmp);
     RB_NULL_CHECK(target);
 
-    rb_tree_delete_at(tree, target, copy);
+    rb_tree_delete_at(tree, target, NULL, copy);
 }
 
 /** @} */

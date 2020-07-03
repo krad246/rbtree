@@ -80,7 +80,7 @@ rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t n
 	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
-    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, copy);
+    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, NULL, copy);
 
 	/* then update the max */
     if (rb_is_empty(tree)) {

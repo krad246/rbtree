@@ -268,11 +268,11 @@ void rb_tree_insert(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Iterator into the tree.
  * @param[in] hint Pointer to a valid rb.
- * @param[in] cmp Comparator callback used to traverse the tree.
+ * @param[out] deleted Pointer to the node that was removed from the tree.
  * @param[in] copy Copy callback used for successor node deletion.
  * @return Iterator to the next element.
  */
-rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, void (*copy)(const rb_node_t *src, rb_node_t *dst));
+rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, rb_iterator_t *deleted, void (*copy)(const rb_node_t *src, rb_node_t *dst));
 
 /**
  * @fn rb_tree_delete
