@@ -37,7 +37,7 @@ void rb_tree_rcached_insert_at(rb_tree_rcached_t *tree, rb_node_t *node, rb_iter
 	/* subsequent inserts may be bigger, so update the max accordingly */
 	if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) >= 0) rb_max(tree) = node;
 
-	rb_tree_insert_at(tree, node, hint, cmp);
+	rb_tree_insert_at((rb_tree_t *) tree, node, hint, cmp);
 }
 
 /**
@@ -72,7 +72,7 @@ void rb_tree_rcached_insert(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)
  * @param[in] copy Copy callback used for successor node deletion.
  * @return Iterator to the next element.
  */
-rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
 	/* check if the max of the tree changed. if it did, slide the max pointer forward */
     bool max_changed = false;

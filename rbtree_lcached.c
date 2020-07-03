@@ -37,7 +37,7 @@ void rb_tree_lcached_insert_at(rb_tree_lcached_t *tree, rb_node_t *node, rb_iter
 	/* subsequent inserts may be smaller, so we update the min accordingly */ 
     if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_min(tree)) <= 0) rb_min(tree) = node;
 
-	rb_tree_insert_at(tree, node, hint, cmp);
+	rb_tree_insert_at((rb_tree_t *) tree, node, hint, cmp);
 }
 
 /**
@@ -72,7 +72,7 @@ void rb_tree_lcached_insert(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)
  * @param[in] copy Copy callback used for successor node deletion.
  * @return Iterator to the next element.
  */
-rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
 	/* check if the min of the tree changed. if it did, slide the min pointer forward */
     bool min_changed = false;

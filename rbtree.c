@@ -708,7 +708,7 @@ static inline const rb_node_t *__rb_find(const rb_node_t *anchor, const rb_node_
  * @param[in] cmp Comparator callback used for the search.
  */
 const rb_iterator_t rb_find(const rb_tree_t *tree, const rb_node_t *key, int (*cmp)(const rb_node_t *left, const rb_node_t *right)) {
-    return __rb_find(rb_root(tree), key, cmp);
+    return (const rb_iterator_t) __rb_find(rb_root(tree), key, cmp);
 }
 
 /** @} */

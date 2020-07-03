@@ -41,7 +41,7 @@ void rb_tree_lrcached_insert_at(rb_tree_lrcached_t *tree, rb_node_t *node, rb_it
 	/* subsequent inserts may be bigger, so update the max accordingly */
 	if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) >= 0) rb_max(tree) = node;
 
-	rb_tree_insert_at(tree, node, hint, cmp);
+	rb_tree_insert_at((rb_tree_t *) tree, node, hint, cmp);
 } 
 
 /**
@@ -66,7 +66,7 @@ void rb_tree_lrcached_insert(rb_tree_lrcached_t *tree, rb_node_t *node, int (*cm
 	if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_min(tree)) <= 0) rb_min(tree) = node;
 	if (cmp((const rb_node_t *) node, (const rb_node_t *) rb_max(tree)) >= 0) rb_max(tree) = node;
 
-	rb_tree_insert(tree, node, cmp);
+	rb_tree_insert((rb_tree_t *) tree, node, cmp);
 }
 
 /**
