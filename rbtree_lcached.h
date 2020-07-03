@@ -86,11 +86,12 @@ void rb_tree_lcached_insert(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Iterator into the tree.
  * @param[in] hint Pointer to a valid rb.
+ * @param[out] deleted Node that was deleted.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
  * @return Iterator to the next element.
  */
-rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
+rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_iterator_t node, rb_iterator_t *deleted, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
 
 /**
  * @fn rb_tree_lcached_delete
@@ -98,10 +99,11 @@ rb_iterator_t rb_tree_lcached_delete_at(rb_tree_lcached_t *tree, rb_iterator_t n
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Iterator into the tree.
  * @param[in] hint Pointer to a valid rb.
+ * @param[out] deleted Node that was deleted.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
  */
-void rb_tree_lcached_delete(rb_tree_lcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
+void rb_tree_lcached_delete(rb_tree_lcached_t *tree, rb_node_t *node, rb_iterator_t *deleted, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst));
 
 /** @} */
 

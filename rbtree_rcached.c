@@ -68,11 +68,12 @@ void rb_tree_rcached_insert(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Iterator into the tree.
  * @param[in] hint Pointer to a valid rb.
+ * @param[out] deleted Node that was deleted.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
  * @return Iterator to the next element.
  */
-rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t node, rb_iterator_t *deleted, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 
 	/* check if the max of the tree changed. if it did, slide the max pointer forward */
     bool max_changed = false;
@@ -80,7 +81,7 @@ rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t n
 	if (max_changed) rb_max(tree) = rb_prev(rb_max(tree));
 
 	/* delete, update references, do whatever you need to do */
-    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, NULL, copy);
+    rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, deleted, copy);
 
 	/* then update the max */
     if (rb_is_empty(tree)) {
@@ -96,10 +97,11 @@ rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t n
  * @param[in] tree Pointer to an rb_tree instance.
  * @param[in] node Iterator into the tree.
  * @param[in] hint Pointer to a valid rb.
+ * @param[out] deleted Node that was deleted.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
  */
-void rb_tree_rcached_delete(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+void rb_tree_rcached_delete(rb_tree_rcached_t *tree, rb_node_t *node, rb_iterator_t *deleted, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
 	RB_NULL_CHECK(cmp);
@@ -111,5 +113,5 @@ void rb_tree_rcached_delete(rb_tree_rcached_t *tree, rb_node_t *node, int (*cmp)
     target = (rb_node_t *) rb_find((rb_tree_t *) tree, node, cmp);
     RB_NULL_CHECK(target);
 
-    rb_tree_rcached_delete_at(tree, target, cmp, copy);
+    rb_tree_rcached_delete_at(tree, target, deleted, cmp, copy);
 }
