@@ -114,8 +114,9 @@ rb_iterator_t rb_tree_lrcached_delete_at(rb_tree_lrcached_t *tree, rb_iterator_t
  * @param[out] deleted Node that was deleted.
  * @param[in] cmp Comparator callback used to traverse the tree.
  * @param[in] copy Copy callback used for successor node deletion.
+ * @return Iterator to the next element.
  */
-void rb_tree_lrcached_delete(rb_tree_lrcached_t *tree, rb_node_t *node, rb_iterator_t *deleted, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+rb_iterator_t rb_tree_lrcached_delete(rb_tree_lrcached_t *tree, rb_node_t *node, rb_iterator_t *deleted, int (*cmp)(const rb_node_t *left, const rb_node_t *right), void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
 	RB_NULL_CHECK(tree);
 	RB_NULL_CHECK(node);
 	RB_NULL_CHECK(cmp);
