@@ -111,21 +111,39 @@ typedef struct rb_tree {
 
 /* Base case pointer checker with no return value */
 #define __RB_NULL_CHECK(ptr)								do {\
-																if (!RB_UNSAFE)	{			\
-																	if (!(ptr)) {			\
-																		return;				\
-																	}						\
-																}							\
+																if (!RB_UNSAFE)	{					\
+																	if (!(ptr)) {					\
+																		return;						\
+																	}								\
+																}									\
 															} while (0)				
 
 /* Base case pointer checker with return value */
 #define __RB_NULL_CHECK_V(ptr, ret)							do {\
-																if (!RB_UNSAFE)	{			\
-																	if (!(ptr)) {			\
-																		return (ret);		\
-																	}						\
-																}							\
-															} while (0)						
+																if (!RB_UNSAFE)	{					\
+																	if (!(ptr)) {					\
+																		return (ret);				\
+																	}								\
+																}									\
+															} while (0)				
+
+
+#define __RB_DISC_CHECK(ptr)								do {\
+																if (!RB_UNSAFE)	{					\
+																	if (rb_is_disconnected(ptr)) {	\
+																		return;						\
+																	}								\
+																}									\
+															} while (0)				
+
+
+#define __RB_DISC_CHECK_V(ptr, ret)							do {\
+																if (!RB_UNSAFE)	{					\
+																	if (rb_is_disconnected(ptr)) {	\
+																		return (ret);				\
+																	}								\
+																}									\
+															} while (0)								
 
 /* 
  * Use the variadic arguments to change _FUNC to the appropriate function,
@@ -141,6 +159,10 @@ typedef struct rb_tree {
 
 #define __RB_NULL_CHECK_S(_1, _2, _FUNC, ...) 				_FUNC
 #define RB_NULL_CHECK(...) 									__RB_NULL_CHECK_S(__VA_ARGS__, __RB_NULL_CHECK_V, __RB_NULL_CHECK)(__VA_ARGS__)
+
+/* Same thing, but to test for disconnected nodes */
+#define __RB_DISC_CHECK_S(_1, _2, _FUNC, ...) 				_FUNC
+#define RB_DISC_CHECK(...) 									__RB_DISC_CHECK_S(__VA_ARGS__, __RB_DISC_CHECK_V, __RB_DISC_CHECK)(__VA_ARGS__)
 
 /** @} */														
 

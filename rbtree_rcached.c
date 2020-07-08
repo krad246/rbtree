@@ -83,8 +83,8 @@ rb_iterator_t rb_tree_rcached_delete_at(rb_tree_rcached_t *tree, rb_iterator_t n
     rb_iterator_t next_node = rb_tree_delete_at((rb_tree_t *) tree, node, deleted, copy);
 
 	/* then update the max */
-	if (max_changed) rb_max(tree) = rb_last((rb_tree_t *) tree);
-    else if (rb_is_empty(tree)) rb_max(tree) = NULL;	
+	if (rb_is_empty(tree)) rb_max(tree) = NULL;
+	else if (max_changed) rb_max(tree) = rb_last((rb_tree_t *) tree);	
 
 	return next_node;
 }

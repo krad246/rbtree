@@ -42,29 +42,24 @@ static inline void __rb_swap_colors(rb_node_t *src, rb_node_t *dst) {
 	RB_NULL_CHECK(src);
 	RB_NULL_CHECK(dst);
 
-    rb_color_t src_color = rb_color(src);       	/** back up src color */
-    __rb_set_color(src, rb_color(dst));             /** change src to dst color */
-    __rb_set_color(dst, src_color);                	/** change dst to old src color */
+    rb_color_t src_color = rb_color(src);       	/* back up src color */
+    __rb_set_color(src, rb_color(dst));             /* change src to dst color */
+    __rb_set_color(dst, src_color);                	/* change dst to old src color */
 }
 
 static inline void __rb_set_parent(rb_node_t *rb, rb_node_t *parent) {
+	RB_NULL_CHECK(rb);
 
 	/* Concatenates the color bit with the parent pointer by representing the parent pointer as an int. */
-	if (rb) rb->__rb_parent_color = rb_color(rb) | ((uintptr_t) parent);
+	rb->__rb_parent_color = rb_color(rb) | ((uintptr_t) parent);
 }
 
 static inline void __rb_replace_child(rb_node_t *root, rb_node_t *old, rb_node_t *nw) {
     RB_NULL_CHECK(root);
-    RB_NULL_CHECK(old);
 
-	if (root) {
-
-		/* Links 'new' in place of 'old' on the side of 'root' that 'old' was on. */
-		if (rb_left(root) == old) rb_left(root) = nw;
-    	else if (rb_right(root) == old) rb_right(root) = nw;
-	}
-
-	__rb_set_parent(nw, root);
+	/* Links 'new' in place of 'old' on the side of 'root' that 'old' was on. */
+	if (rb_left(root) == old) rb_left(root) = nw;
+	else if (rb_right(root) == old) rb_right(root) = nw;
 }
 
 static inline void __rb_set_parent_and_color(rb_node_t *rb, rb_node_t *parent, rb_color_t color) {
@@ -82,35 +77,37 @@ static inline void __rb_set_parent_and_color(rb_node_t *rb, rb_node_t *parent, r
  */
 
 static inline void __rb_left_rotate(rb_node_t *root) {
+	RB_NULL_CHECK(root);
+
     rb_node_t *upper_root, *pivot;
+    upper_root = rb_parent(root); 									/* 'grandparent tree' containing the subtree being rotated */
+    pivot = rb_right(root);											/* new root of that subtree */
 
-    upper_root = rb_parent(root); 					/** 'master tree' containing the subtree being rotated */
-    pivot = rb_right(root);							/** new root of that subtree */
+    rb_right(root) = rb_left(pivot);								/* link the current root's right subtree as the new root's left */
+    if (rb_right(root)) __rb_set_parent(rb_right(root), root);
 
-    rb_right(root) = rb_left(pivot);				/** link the current root's right subtree as the new root's left */
-    __rb_set_parent(rb_right(root), root);
+    rb_left(pivot) = root;											/* link the old root as the left subtree of the new root */
+    if (rb_left(pivot)) __rb_set_parent(rb_left(pivot), pivot);
 
-    rb_left(pivot) = root;							/** link the old root as the left subtree of the new root */
-    __rb_set_parent(rb_left(pivot), pivot);
-
-    __rb_set_parent(pivot, upper_root);				/** update the subtree's connection to the master */
-    __rb_replace_child(upper_root, root, pivot);
+    __rb_set_parent(pivot, upper_root);								/* update the subtree's connection to the grandparent */
+    if (upper_root) __rb_replace_child(upper_root, root, pivot);
 }
 
 static inline void __rb_right_rotate(rb_node_t *root) {
+	RB_NULL_CHECK(root);
+
     rb_node_t *upper_root, *pivot;
+    upper_root = rb_parent(root);									/* 'grandparent tree' containing the subtree being rotated */
+    pivot = rb_left(root);											/* new root of that subtree */
 
-    upper_root = rb_parent(root);					/** 'master tree' containing the subtree being rotated */
-    pivot = rb_left(root);							/** new root of that subtree */
+    rb_left(root) = rb_right(pivot);								/* link the current root's right subtree as the new root's left */
+    if (rb_left(root)) __rb_set_parent(rb_left(root), root);
 
-    rb_left(root) = rb_right(pivot);				/** link the current root's right subtree as the new root's left */
-    __rb_set_parent(rb_left(root), root);
+    rb_right(pivot) = root;											/* link the old root as the left subtree of the new root */
+    if (rb_right(pivot)) __rb_set_parent(rb_right(pivot), pivot);
 
-    rb_right(pivot) = root;							/** link the old root as the left subtree of the new root */
-    __rb_set_parent(rb_right(pivot), pivot);
-
-    __rb_set_parent(pivot, upper_root);				/** update the subtree's connection to the master */
-    __rb_replace_child(upper_root, root, pivot);
+    __rb_set_parent(pivot, upper_root);								/* update the subtree's connection to the grandparent */
+    if (upper_root) __rb_replace_child(upper_root, root, pivot);
 }
 
 /** @} */
@@ -129,6 +126,7 @@ static inline void __rb_node_clear(rb_node_t *node) {
 }
 
 static void __rb_node_init(rb_node_t *node) {
+	RB_NULL_CHECK(node);
 	__rb_node_clear(node);
 }
 
@@ -139,7 +137,6 @@ static void __rb_node_init(rb_node_t *node) {
  */
 void rb_tree_init(rb_tree_t *tree) {
     RB_NULL_CHECK(tree);
-	
     rb_root(tree) = NULL;
 }
 
@@ -218,12 +215,16 @@ static inline void __rb_insert_basic(rb_node_t *root, rb_node_t *node, int (*cmp
  * @brief Performs rb_insert_fixup on node, correcting all subtrees above it.
  */
 static inline void __rb_insert_rebalance(rb_node_t *node) {
-    rb_node_t *parent, *uncle, *grandparent;
+	RB_NULL_CHECK(node);
 
+    rb_node_t *parent, *uncle, *grandparent;
     for (;;) {
         parent = node ? rb_parent(node) : NULL;
         uncle = __rb_sibling(parent);
         grandparent = parent ? rb_parent(parent) : NULL;
+
+		/* we should NEVER insert a disconnected node! */
+		RB_DISC_CHECK(node);
 
 		/* hitting the root means we're done - make sure it's black afterwards */
         if (parent == NULL) {
@@ -358,6 +359,7 @@ void rb_tree_insert_at(rb_tree_t *tree, rb_node_t *node, rb_iterator_t hint, int
 		}
 
 		rb_root(tree) = node;
+
 	} else rb_tree_insert(tree, node, cmp);
 }
 
@@ -383,6 +385,8 @@ void rb_tree_insert(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t
 
 		/* the node needs to be fresh and must not come in corrupted */
 		__rb_node_init(node);
+
+		/* insert it */
 		__rb_insert_basic(rb_root(tree), node, cmp);
 		__rb_insert_rebalance(node);
 
@@ -410,6 +414,7 @@ void rb_tree_insert(rb_tree_t *tree, rb_node_t *node, int (*cmp)(const rb_node_t
  */
 static inline const rb_node_t *__rb_node_successor(const rb_node_t *target) {
 	RB_NULL_CHECK(target, NULL);
+
 	rb_node_t *successor;
 
 	/* if the target is not a leaf node, the one right after is the successor */
@@ -435,6 +440,7 @@ static inline const rb_node_t *__rb_node_successor(const rb_node_t *target) {
  */
 static inline const rb_node_t *__rb_node_predecessor(const rb_node_t *target) {
 	RB_NULL_CHECK(target, NULL);
+
 	rb_node_t *successor;
 
 	/* if the target is not a leaf node, the one right before is the successor */
@@ -456,10 +462,17 @@ static inline const rb_node_t *__rb_node_predecessor(const rb_node_t *target) {
 }
 
 /**
- * @brief Deletes a node by connecting its subtrees to its parent.
+ * @brief Deletes a node by connecting its subtree to its parent.
  */
 static inline void __rb_delete_node(rb_node_t *target) {
 	RB_NULL_CHECK(target);
+
+	/* we should NEVER be deleting a node with 2 subtrees! */
+	#if (RB_UNSAFE == 0)
+		if (rb_left(target) && rb_right(target)) {
+			return;
+		}
+	#endif
 
 	rb_node_t *child;
 
@@ -467,8 +480,8 @@ static inline void __rb_delete_node(rb_node_t *target) {
 	else if (rb_right(target)) child = rb_right(target);
 	else child = NULL;
 
-    __rb_replace_child(rb_parent(target), target, child);
-	__rb_set_parent(child, rb_parent(target));
+    if (rb_parent(target)) __rb_replace_child(rb_parent(target), target, child);
+	if (child) __rb_set_parent(child, rb_parent(target));
     __rb_node_clear(target);
 }
 
@@ -479,19 +492,19 @@ static inline void __rb_delete_node(rb_node_t *target) {
  * @param[in] copy Copy callback for the deletion.
  */
 static inline void __rb_move_and_delete(rb_node_t *src, rb_node_t *dst, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
-
-	/* if we had 1 child (so a replacement) then we copy the replacement and delete that */
-	if (src) {
-		copy((void *) src, (void *) dst);
-    	__rb_delete_node(src);
-
-	/* else we just delete ourselves */
-	} else {
-		__rb_delete_node(dst);
-	}
+	RB_NULL_CHECK(src);
+	RB_NULL_CHECK(dst);
+	RB_NULL_CHECK(copy);
+	
+	copy((void *) src, (void *) dst);
+    __rb_delete_node(src);
 }
 
 static inline void __rb_delete_basic(rb_node_t *replacement, rb_node_t *target, void (*copy)(const rb_node_t *src, rb_node_t *dst)) {
+	RB_NULL_CHECK(replacement);
+	RB_NULL_CHECK(target);
+	RB_NULL_CHECK(copy);
+
 	__rb_move_and_delete(replacement, target, copy);
 }
 
@@ -499,11 +512,15 @@ static inline void __rb_delete_basic(rb_node_t *replacement, rb_node_t *target, 
  * @brief Performs rb_delete_fixup on the subtree centered on node, correcting all surrounding trees.
  */
 static inline void __rb_delete_rebalance(rb_node_t *node) {
-    rb_node_t *parent, *sibling;
+	RB_NULL_CHECK(node);
+	
+	rb_node_t *parent, *sibling;
     rb_node_t *sibling_lchild, *sibling_rchild;
-
     for (;;) {
         parent = rb_parent(node);
+
+		/* we should NEVER delete a disconnected node! */
+		RB_DISC_CHECK(node);
 
 		/* if we hit the root, we're done, and the root must always be black. */
         if (parent == NULL) {
@@ -610,9 +627,15 @@ rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, rb_iterator
 	/* we don't need to find the node, only its replacement */
     replacement = (rb_node_t *) __rb_node_predecessor(node);    
 
-	/* then we rebalance and propagate changes from the base up */
-	if (replacement) __rb_delete_rebalance(replacement);	
-	else __rb_delete_rebalance(node);
+	/** 
+	 * if there is no predecessor, then the node has no replacement 
+	 * and then we rebalance centered right on it
+	 */
+	replacement = replacement ? replacement : node;
+	__rb_delete_rebalance(replacement);	
+
+	/* we should NEVER delete a disconnected node! */
+	RB_DISC_CHECK(node);
 	
 	/* retrace the root because the rotations might've changed it */
     cursor = node;
@@ -627,7 +650,7 @@ rb_iterator_t rb_tree_delete_at(rb_tree_t *tree, rb_iterator_t node, rb_iterator
 	 * We can delete the node problem-free as soon as we identify the next node correctly.
 	 */
 	rb_iterator_t next_node;
-	if (!replacement) {
+	if (replacement == node) {
 		if (deleted) *deleted = node;
 		next_node = rb_next(node);
 		__rb_delete_basic(replacement, node, copy);
@@ -723,6 +746,10 @@ static inline const rb_node_t *__rb_find(const rb_node_t *anchor, const rb_node_
  * @param[in] cmp Comparator callback used for the search.
  */
 const rb_iterator_t rb_find(const rb_tree_t *tree, const rb_node_t *key, int (*cmp)(const rb_node_t *left, const rb_node_t *right)) {
+	RB_NULL_CHECK(tree);
+	RB_NULL_CHECK(key);
+	RB_NULL_CHECK(cmp);
+
     return (const rb_iterator_t) __rb_find(rb_root(tree), key, cmp);
 }
 
@@ -738,7 +765,7 @@ const rb_iterator_t rb_find(const rb_tree_t *tree, const rb_node_t *key, int (*c
  * @param[in] anchor Root of the subtree to search.
  */
 static inline const rb_iterator_t __rb_first(const rb_node_t *anchor) {
-	RB_NULL_CHECK(anchor, NULL);
+	if (!anchor) return NULL;
 
     rb_iterator_t cursor = (rb_iterator_t) anchor;
     while (rb_left(cursor) != NULL) {
@@ -753,7 +780,7 @@ static inline const rb_iterator_t __rb_first(const rb_node_t *anchor) {
  * @param[in] anchor Root of the subtree to search.
  */
 static inline const rb_iterator_t __rb_last(const rb_node_t *anchor) {
-	RB_NULL_CHECK(anchor, NULL);
+	if (!anchor) return NULL;
 
     rb_iterator_t cursor = (rb_iterator_t) anchor;
     while (rb_right(cursor) != NULL) {
@@ -848,8 +875,8 @@ const rb_iterator_t rb_prev(const rb_iterator_t node) {
  * @param[in] cb Function to apply to each node.
  */
 static inline void __rb_inorder_foreach(rb_node_t *anchor, void (*cb)(rb_node_t *key)) {
-	RB_NULL_CHECK(cb);
 	if (!anchor) return;
+	RB_NULL_CHECK(cb);
 
     __rb_inorder_foreach(anchor->left, cb);
     cb(anchor);
@@ -862,8 +889,8 @@ static inline void __rb_inorder_foreach(rb_node_t *anchor, void (*cb)(rb_node_t 
  * @param[in] cb Function to apply to each node.
  */
 static inline void __rb_postorder_foreach(rb_node_t *anchor, void (*cb)(rb_node_t *key)) {
-	RB_NULL_CHECK(cb);
 	if (!anchor) return;
+	RB_NULL_CHECK(cb);
 
     __rb_postorder_foreach(anchor->left, cb);
     __rb_postorder_foreach(anchor->right, cb);
@@ -876,8 +903,8 @@ static inline void __rb_postorder_foreach(rb_node_t *anchor, void (*cb)(rb_node_
  * @param[in] cb Function to apply to each node.
  */
 static inline void __rb_preorder_foreach(rb_node_t *anchor, void (*cb)(rb_node_t *key)) {
-	RB_NULL_CHECK(cb);
 	if (!anchor) return;
+	RB_NULL_CHECK(cb);
 
     cb(anchor);
     __rb_preorder_foreach(anchor->left, cb);

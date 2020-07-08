@@ -17,4 +17,4 @@ all: rblib.a
 	
 .PHONY: clean
 clean:
-	rm -f *.o *.d *.a
+	rm -f *.o *.d *.a *.gch *.exe
